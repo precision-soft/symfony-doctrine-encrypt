@@ -1,0 +1,95 @@
+#!/bin/bash
+
+. "${PWD}/dev/utility.sh"
+
+stop() {
+    if [[ "$2" != "" ]]; then
+        error "$2"
+
+        println ""
+    fi
+
+    section "stop pre commit hook"
+    exit $1
+}
+
+check_container_dev() {
+    if [[ $(check_container "${CONTAINER_DEV}") != 0 ]]; then
+        println ""
+
+        stop 1 "$(error_container ${CONTAINER_DEV})"
+    fi
+}
+
+# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+lint() {
+    STAGED_FILES=$1
+
+    print_command "start php lint"
+    println ""
+
+    for FILE in ${STAGED_FILES}; do
+        run_in_container_dev php -l -d display_errors=0 "${FILE}"
+
+        if [[ $? != 0 ]]; then
+            print_error "fix the error before commit"
+            stop 1
+        fi
+    done
+
+    println ""
+    print_command "end php lint"
+}
+
+code_sniffer() {
+    print_command "start code sniffer"
+    println ""
+
+    run_in_container_dev ./vendor/bin/phpcs --no-cache --encoding=utf-8 -n -p -v -s $1
+
+    if [[ $? != 0 ]]; then
+        print_error "fix the errors before commit"
+    fi
+
+    print_command "end code sniffer"
+}
+
+# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+STAGED_FILES=$(git diff --cached --name-only)
+
+print_command "${PWD} start pre commit hook"
+
+if [[ "${STAGED_FILES}" = "" ]]; then
+    println "no files to commit"
+
+    stop 1
+fi
+
+println ""
+
+print_command "staged files start"
+println "${STAGED_FILES}"
+print_command "staged files end"
+
+check_container_dev
+
+STAGED_FILES_PHP=$(git diff --cached --name-only --diff-filter=ACMR HEAD | grep \\.php)
+if [[ "${STAGED_FILES_PHP}" != "" ]]; then
+    lint "${STAGED_FILES_PHP}"
+
+    println ""
+
+    code_sniffer "${STAGED_FILES}"
+fi
+
+println ""
+
+print_command "staged files after hooks start"
+println "$(git diff --cached --name-only)"
+print_command "staged files after hooks end"
+
+println ""
+
+stop $?

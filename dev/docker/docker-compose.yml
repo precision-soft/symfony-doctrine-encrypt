@@ -1,0 +1,15 @@
+services:
+    dev:
+        build:
+            context: ${RELATIVE_PATH_TO_ROOT}
+            dockerfile: ${CONFIG_PATH}/Dockerfile
+            args:
+                CONFIG_PATH: ${CONFIG_PATH}
+                USER_ID: ${USER_ID}
+                GROUP_ID: ${GROUP_ID}
+                WORKDIR: ${CONTAINER_APP_PATH}
+                SETUP_SH_SOURCE: ${CONFIG_PATH}/setup.sh
+        privileged: true
+        restart: unless-stopped
+        volumes:
+            - ${RELATIVE_PATH_TO_ROOT}:${CONTAINER_APP_PATH}
