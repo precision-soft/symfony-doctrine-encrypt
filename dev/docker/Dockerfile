@@ -13,7 +13,7 @@ ENV WORKDIR=${WORKDIR}
 COPY ${CONFIG_PATH}/.profile* ${HOME}/
 ENV ENV="${HOME}/.profile"
 
-RUN apk add --no-cache shadow bash
+RUN apk add --no-cache shadow bash git
 RUN rm -rf /tmp/*
 
 RUN cp $PHP_INI_DIR/php.ini-production $PHP_INI_DIR/php.ini
