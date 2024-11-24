@@ -20,7 +20,7 @@
     "require": {
         "php": ">=8.2",
         "ext-openssl": "*",
-        "doctrine/dbal": "3.*",
+        "doctrine/dbal": "3.*||4.*",
         "doctrine/orm": "3.*",
         "doctrine/persistence": "3.*",
         "precision-soft/symfony-console": "1.*",

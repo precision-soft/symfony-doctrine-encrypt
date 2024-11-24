@@ -33,21 +33,21 @@ class DatabaseDecryptCommand extends AbstractDatabaseCommand
     {
         try {
             $entitiesWithEncryption = $this->entityService->getEntitiesWithEncryption($this->getManagerName());
-            if (!$entitiesWithEncryption) {
-                $this->warning('No entities found to decrypt!');
+            if (true === empty($entitiesWithEncryption)) {
+                $this->warning('no entities found to decrypt');
 
                 throw new StopException();
             }
 
             $this->askForConfirmation($entitiesWithEncryption);
 
-            $this->warning('Decrypting all the fields can take up to several minutes depending on the database size.');
+            $this->warning('decrypting all the fields can take up to several minutes depending on the database size');
 
             foreach ($entitiesWithEncryption as $entityMetadataDto) {
                 $this->decrypt($entityMetadataDto);
             }
 
-            $this->success('Decryption finished.');
+            $this->success('decryption finished');
         } catch (StopException $t) {
             /* ignore */
         } catch (Throwable $t) {

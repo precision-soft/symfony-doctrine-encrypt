@@ -12,16 +12,10 @@ use Doctrine\Persistence\Mapping\ClassMetadata;
 
 class EntityMetadataDto
 {
-    private ClassMetadata $classMetadata;
-    private array $encryptionFields;
-
     public function __construct(
-        ClassMetadata $classMetadata,
-        array $encryptionFields,
-    ) {
-        $this->classMetadata = $classMetadata;
-        $this->encryptionFields = $encryptionFields;
-    }
+        private readonly ClassMetadata $classMetadata,
+        private readonly array $encryptionFields,
+    ) {}
 
     public function getClassMetadata(): ?ClassMetadata
     {

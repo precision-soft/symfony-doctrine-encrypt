@@ -14,12 +14,9 @@ abstract class AbstractEncryptor
 {
     protected const ENCRYPTION_MARKER = '<ENC>';
 
-    protected string $salt;
-
-    public function __construct(string $salt)
-    {
-        $this->salt = $salt;
-    }
+    public function __construct(
+        protected readonly string $salt
+    ) {}
 
     final public function getTypeName(): ?string
     {

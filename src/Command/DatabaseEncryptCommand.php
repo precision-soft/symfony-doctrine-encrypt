@@ -32,25 +32,25 @@ class DatabaseEncryptCommand extends AbstractDatabaseCommand
     {
         try {
             $entitiesWithEncryption = $this->entityService->getEntitiesWithEncryption($this->getManagerName());
-            if (!$entitiesWithEncryption) {
-                $this->warning('No entities found to encrypt!');
+            if (true === empty($entitiesWithEncryption)) {
+                $this->warning('no entities found to encrypt');
 
                 throw new StopException();
             }
 
             $this->askForConfirmation($entitiesWithEncryption);
 
-            $this->warning('Encrypting all the fields can take up to several minutes depending on the database size.');
+            $this->warning('encrypting all the fields can take up to several minutes depending on the database size');
 
             foreach ($entitiesWithEncryption as $entityMetadataDto) {
                 $this->encrypt($entityMetadataDto);
             }
 
-            $this->success('Encryption finished.');
+            $this->success('encryption finished');
         } catch (StopException $t) {
             /* ignore */
         } catch (Throwable $t) {
-            $this->error($t->__toString());
+            $this->error($t->getMessage(), $t);
 
             return static::FAILURE;
         }

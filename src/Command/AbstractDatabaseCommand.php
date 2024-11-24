@@ -22,19 +22,11 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
 {
     protected const OPTION_MANAGER = 'manager';
 
-    protected ManagerRegistry $managerRegistry;
-    protected EncryptorFactory $encryptorFactory;
-    protected EntityService $entityService;
-
     public function __construct(
-        ManagerRegistry $managerRegistry,
-        EncryptorFactory $encryptorFactory,
-        EntityService $entityService,
+        protected readonly ManagerRegistry $managerRegistry,
+        protected readonly EncryptorFactory $encryptorFactory,
+        protected readonly EntityService $entityService,
     ) {
-        $this->managerRegistry = $managerRegistry;
-        $this->encryptorFactory = $encryptorFactory;
-        $this->entityService = $entityService;
-
         parent::__construct();
     }
 
@@ -78,9 +70,9 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
             $this->getQuestionText(
                 [
                     \sprintf('`%s` entities found which are containing properties with encryption types.', \count($entitiesWithEncryption)),
-                    'Wrong settings can make your data unrecoverable.',
-                    'I advise you to make a backup before running this command.',
-                    'Continue with this action? (y/yes)',
+                    'wrong settings can make your data unrecoverable.',
+                    'i advise you to make a backup before running this command.',
+                    'continue with this action? (y/yes)',
                 ],
             ),
             false,

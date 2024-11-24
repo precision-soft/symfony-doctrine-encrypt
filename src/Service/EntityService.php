@@ -16,16 +16,10 @@ use PrecisionSoft\Doctrine\Encrypt\Exception\FieldNotEncryptedException;
 
 class EntityService
 {
-    private ManagerRegistry $managerRegistry;
-    private EncryptorFactory $encryptorFactory;
-
     public function __construct(
-        ManagerRegistry $managerRegistry,
-        EncryptorFactory $encryptorFactory,
-    ) {
-        $this->managerRegistry = $managerRegistry;
-        $this->encryptorFactory = $encryptorFactory;
-    }
+        private readonly ManagerRegistry $managerRegistry,
+        private readonly EncryptorFactory $encryptorFactory,
+    ) {}
 
     public function getEncryptor(
         string $class,
