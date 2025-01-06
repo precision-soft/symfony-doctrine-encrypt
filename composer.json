@@ -1,7 +1,7 @@
 {
     "name": "precision-soft/symfony-doctrine-encrypt",
     "type": "symfony-bundle",
-    "version": "v2.0.0",
+    "version": "v2.1.0",
     "description": "doctrine encrypt type",
     "keywords": [
         "symfony",
@@ -23,7 +23,7 @@
         "doctrine/dbal": "3.*||4.*",
         "doctrine/orm": "3.*",
         "doctrine/persistence": "3.*",
-        "precision-soft/symfony-console": "1.*",
+        "precision-soft/symfony-console": "1.*||2.*",
         "symfony/config": "7.*"
     },
     "require-dev": {
