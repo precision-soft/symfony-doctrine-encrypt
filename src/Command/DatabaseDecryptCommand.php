@@ -10,29 +10,26 @@ namespace PrecisionSoft\Doctrine\Encrypt\Command;
 
 use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\UnitOfWork;
+use PrecisionSoft\Doctrine\Encrypt\Contract\EncryptorInterface;
 use PrecisionSoft\Doctrine\Encrypt\Dto\EntityMetadataDto;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\FakeEncryptor;
 use PrecisionSoft\Doctrine\Encrypt\Exception\StopException;
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Throwable;
 
+#[AsCommand(name: self::NAME)]
 class DatabaseDecryptCommand extends AbstractDatabaseCommand
 {
     public const NAME = 'precision-soft:doctrine:database:decrypt';
-
-    protected function configure(): void
-    {
-        parent::configure();
-
-        $this->setName(self::NAME);
-    }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         try {
             $entitiesWithEncryption = $this->entityService->getEntitiesWithEncryption($this->getManagerName());
+
             if (true === empty($entitiesWithEncryption)) {
                 $this->warning('no entities found to decrypt');
 
@@ -40,7 +37,6 @@ class DatabaseDecryptCommand extends AbstractDatabaseCommand
             }
 
             $this->askForConfirmation($entitiesWithEncryption);
-
             $this->warning('decrypting all the fields can take up to several minutes depending on the database size');
 
             foreach ($entitiesWithEncryption as $entityMetadataDto) {
@@ -48,10 +44,10 @@ class DatabaseDecryptCommand extends AbstractDatabaseCommand
             }
 
             $this->success('decryption finished');
-        } catch (StopException $t) {
+        } catch (StopException $throwable) {
             /* ignore */
-        } catch (Throwable $t) {
-            $this->error($t->getMessage(), $t);
+        } catch (Throwable $throwable) {
+            $this->error($throwable->getMessage(), $throwable);
 
             return static::FAILURE;
         }
@@ -63,87 +59,89 @@ class DatabaseDecryptCommand extends AbstractDatabaseCommand
     {
         $className = $entityMetadataDto->getClassMetadata()->getName();
 
-        $this->style->section('[DECRYPT]' . $className);
+        $this->style->section('[DECRYPT] ' . $className);
 
         $fields = \array_merge(
             $entityMetadataDto->getClassMetadata()->getIdentifier(),
             \array_keys($entityMetadataDto->getEncryptionFields()),
         );
 
-        $em = $this->getManager();
+        $entityManager = $this->getManager();
         /** @var UnitOfWork $unitOfWork */
-        $unitOfWork = $em->getUnitOfWork();
+        $unitOfWork = $entityManager->getUnitOfWork();
 
         /** @var EntityRepository $repository */
-        $repository = $em->getRepository($className);
+        $repository = $entityManager->getRepository($className);
 
         $total = $repository->createQueryBuilder('e')
             ->select('COUNT(e)')
-            ->getQuery()->getSingleScalarResult();
+            ->getQuery()
+            ->getSingleScalarResult();
 
-        $progressBar = new ProgressBar($this->output, (int)$total);
-        $i = 0;
+        $progressBar = new ProgressBar($this->output, (int) $total);
+        $offset = 0;
 
         do {
             $entities = $repository->createQueryBuilder('e')
                 ->select('PARTIAL e.{' . \implode(', ', $fields) . '}')
                 ->setMaxResults(50)
-                ->setFirstResult($i)
-                ->getQuery()->getResult();
+                ->setFirstResult($offset)
+                ->getQuery()
+                ->getResult();
 
             $originalEntityData = $this->getOriginalEntityData($entityMetadataDto);
-
-            $resetedEncryptors = $this->resetEncryptors($entityMetadataDto->getEncryptionFields());
+            $resetEncryptors = $this->resetEncryptors($entityMetadataDto->getEncryptionFields());
 
             foreach ($entities as $entity) {
-                ++$i;
+                ++$offset;
 
                 $unitOfWork->setOriginalEntityData($entity, $originalEntityData);
-
-                $em->persist($entity);
-
+                $entityManager->persist($entity);
                 $progressBar->advance();
             }
 
-            $em->flush();
-
-            $this->restoreEncryptors($resetedEncryptors);
-
-            $em->clear();
+            $entityManager->flush();
+            $this->restoreEncryptors($resetEncryptors);
+            $entityManager->clear();
             \gc_collect_cycles();
-        } while ($entities);
+        } while ([] !== $entities);
 
         $progressBar->finish();
-
         $this->writeln('');
     }
 
+    /**
+     * @param array<string, string> $encryptionFields
+     *
+     * @return array<string, EncryptorInterface>
+     */
     private function resetEncryptors(array $encryptionFields): array
     {
-        $resetedEncryptors = [];
+        $resetEncryptors = [];
 
         foreach ($encryptionFields as $typeName) {
-            if (isset($resetedEncryptors[$typeName])) {
+            if (true === isset($resetEncryptors[$typeName])) {
                 continue;
             }
 
             $type = $this->encryptorFactory->getType($typeName);
-
-            $resetedEncryptors[$typeName] = $type->getEncryptor();
+            $resetEncryptors[$typeName] = $type->getEncryptor();
 
             $type->setEncryptor(
                 $this->encryptorFactory->getEncryptor(FakeEncryptor::class),
             );
         }
 
-        return $resetedEncryptors;
+        return $resetEncryptors;
     }
 
-    private function restoreEncryptors(array $resetedEncryptors): void
+    /**
+     * @param array<string, EncryptorInterface> $resetEncryptors
+     */
+    private function restoreEncryptors(array $resetEncryptors): void
     {
-        foreach ($resetedEncryptors as $typeName => $encryptor) {
+        foreach ($resetEncryptors as $typeName => $encryptor) {
             $type = $this->encryptorFactory->getType($typeName);
-
             $type->setEncryptor($encryptor);
         }
     }

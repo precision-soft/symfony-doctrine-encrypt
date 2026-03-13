@@ -12,26 +12,22 @@ use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\UnitOfWork;
 use PrecisionSoft\Doctrine\Encrypt\Dto\EntityMetadataDto;
 use PrecisionSoft\Doctrine\Encrypt\Exception\StopException;
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Throwable;
 
+#[AsCommand(name: self::NAME)]
 class DatabaseEncryptCommand extends AbstractDatabaseCommand
 {
     public const NAME = 'precision-soft:doctrine:database:encrypt';
-
-    protected function configure(): void
-    {
-        parent::configure();
-
-        $this->setName(self::NAME);
-    }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         try {
             $entitiesWithEncryption = $this->entityService->getEntitiesWithEncryption($this->getManagerName());
+
             if (true === empty($entitiesWithEncryption)) {
                 $this->warning('no entities found to encrypt');
 
@@ -39,7 +35,6 @@ class DatabaseEncryptCommand extends AbstractDatabaseCommand
             }
 
             $this->askForConfirmation($entitiesWithEncryption);
-
             $this->warning('encrypting all the fields can take up to several minutes depending on the database size');
 
             foreach ($entitiesWithEncryption as $entityMetadataDto) {
@@ -47,10 +42,10 @@ class DatabaseEncryptCommand extends AbstractDatabaseCommand
             }
 
             $this->success('encryption finished');
-        } catch (StopException $t) {
+        } catch (StopException $throwable) {
             /* ignore */
-        } catch (Throwable $t) {
-            $this->error($t->getMessage(), $t);
+        } catch (Throwable $throwable) {
+            $this->error($throwable->getMessage(), $throwable);
 
             return static::FAILURE;
         }
@@ -69,47 +64,45 @@ class DatabaseEncryptCommand extends AbstractDatabaseCommand
             \array_keys($entityMetadataDto->getEncryptionFields()),
         );
 
-        $em = $this->getManager();
+        $entityManager = $this->getManager();
         /** @var UnitOfWork $unitOfWork */
-        $unitOfWork = $em->getUnitOfWork();
+        $unitOfWork = $entityManager->getUnitOfWork();
 
         /** @var EntityRepository $repository */
-        $repository = $em->getRepository($className);
+        $repository = $entityManager->getRepository($className);
 
         $total = $repository->createQueryBuilder('e')
             ->select('COUNT(e)')
-            ->getQuery()->getSingleScalarResult();
+            ->getQuery()
+            ->getSingleScalarResult();
 
-        $progressBar = new ProgressBar($this->output, (int)$total);
-        $i = 0;
+        $progressBar = new ProgressBar($this->output, (int) $total);
+        $offset = 0;
 
         do {
             $entities = $repository->createQueryBuilder('e')
                 ->select('PARTIAL e.{' . \implode(', ', $fields) . '}')
                 ->setMaxResults(50)
-                ->setFirstResult($i)
-                ->getQuery()->getResult();
+                ->setFirstResult($offset)
+                ->getQuery()
+                ->getResult();
 
             $originalEntityData = $this->getOriginalEntityData($entityMetadataDto);
 
             foreach ($entities as $entity) {
-                ++$i;
+                ++$offset;
 
                 $unitOfWork->setOriginalEntityData($entity, $originalEntityData);
-
-                $em->persist($entity);
-
+                $entityManager->persist($entity);
                 $progressBar->advance();
             }
 
-            $em->flush();
-
-            $em->clear();
+            $entityManager->flush();
+            $entityManager->clear();
             \gc_collect_cycles();
-        } while ($entities);
+        } while ([] !== $entities);
 
         $progressBar->finish();
-
         $this->writeln('');
     }
 }

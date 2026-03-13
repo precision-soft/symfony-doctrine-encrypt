@@ -34,19 +34,19 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
     {
         parent::configure();
 
-        $this->addOption(self::OPTION_MANAGER, null, InputOption::VALUE_OPTIONAL, 'the entity manager for witch to run the command');
+        $this->addOption(self::OPTION_MANAGER, null, InputOption::VALUE_OPTIONAL, 'the entity manager for which to run the command');
     }
 
     protected function getManagerName(): ?string
     {
-        return $this->input->getOption(self::OPTION_MANAGER);
+        $managerName = $this->input->getOption(self::OPTION_MANAGER);
+
+        return \is_string($managerName) ? $managerName : null;
     }
 
     protected function getManager(): ObjectManager
     {
-        $managerName = $this->getManagerName();
-
-        return $this->managerRegistry->getManager($managerName);
+        return $this->managerRegistry->getManager($this->getManagerName());
     }
 
     protected function getOriginalEntityData(EntityMetadataDto $entityMetadataDto): array
@@ -79,7 +79,8 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
         );
 
         $question = $this->getHelper('question');
-        if (!$question->ask($this->input, $this->output, $confirmationQuestion)) {
+
+        if (false === $question->ask($this->input, $this->output, $confirmationQuestion)) {
             throw new StopException();
         }
     }
@@ -88,6 +89,7 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
     {
         /** @todo allow styles */
         $maxLength = 0;
+
         foreach ($questionParts as $questionPart) {
             $maxLength = \max(\strlen($questionPart), $maxLength);
         }
@@ -97,6 +99,7 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
         foreach ($questionParts as &$questionPart) {
             $questionPart = $indent . \str_pad($questionPart, $maxLength, ' ');
         }
+
         unset($questionPart);
 
         return '<question>' . \implode(\PHP_EOL, $questionParts) . '</question>: ';

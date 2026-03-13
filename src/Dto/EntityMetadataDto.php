@@ -10,19 +10,25 @@ namespace PrecisionSoft\Doctrine\Encrypt\Dto;
 
 use Doctrine\Persistence\Mapping\ClassMetadata;
 
-class EntityMetadataDto
+readonly class EntityMetadataDto
 {
+    /**
+     * @param array<string, string> $encryptionFields
+     */
     public function __construct(
-        private readonly ClassMetadata $classMetadata,
-        private readonly array $encryptionFields,
+        private ClassMetadata $classMetadata,
+        private array $encryptionFields,
     ) {}
 
-    public function getClassMetadata(): ?ClassMetadata
+    public function getClassMetadata(): ClassMetadata
     {
         return $this->classMetadata;
     }
 
-    public function getEncryptionFields(): ?array
+    /**
+     * @return array<string, string>
+     */
+    public function getEncryptionFields(): array
     {
         return $this->encryptionFields;
     }

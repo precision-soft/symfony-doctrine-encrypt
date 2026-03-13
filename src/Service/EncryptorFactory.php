@@ -18,53 +18,56 @@ use PrecisionSoft\Doctrine\Encrypt\Type\AbstractType;
 
 class EncryptorFactory
 {
-    /** @var EncryptorInterface[] */
+    /** @var array<class-string, EncryptorInterface> */
     private array $encryptors;
+
+    /** @var string[] */
     private array $typeNames;
 
     public function __construct(iterable $encryptors)
     {
-        /* @todo register only the configured encryptors */
-
+        /** @todo register only the configured encryptors */
         $this->encryptors = [];
         $this->typeNames = [];
 
         /** @var EncryptorInterface $encryptor */
         foreach ($encryptors as $encryptor) {
             $typeName = $encryptor->getTypeName();
-            if ($typeName) {
-                if (\in_array($typeName, $this->typeNames, true)) {
-                    throw new DuplicateEncryptorException(
-                        \sprintf('multiple encryptors defined for type `%s`', $typeName),
-                    );
-                }
 
-                $this->typeNames[] = $typeName;
+            if (true === \in_array($typeName, $this->typeNames, true)) {
+                throw new DuplicateEncryptorException(
+                    \sprintf('multiple encryptors defined for type `%s`', $typeName),
+                );
             }
 
+            $this->typeNames[] = $typeName;
             $this->encryptors[$encryptor::class] = $encryptor;
         }
     }
 
     /**
-     * @return EncryptorInterface[]
+     * @return array<class-string, EncryptorInterface>
      *
      * @internal
      */
-    public function getEncryptors(): ?array
+    public function getEncryptors(): array
     {
         return $this->encryptors;
     }
 
-    /** @internal */
-    public function getTypeNames(): ?array
+    /**
+     * @return string[]
+     *
+     * @internal
+     */
+    public function getTypeNames(): array
     {
         return $this->typeNames;
     }
 
     public function getEncryptor(string $encryptorClass): EncryptorInterface
     {
-        if (!isset($this->encryptors[$encryptorClass])) {
+        if (false === isset($this->encryptors[$encryptorClass])) {
             throw new EncryptorNotFoundException(\sprintf('no encryptor found for `%s`', $encryptorClass));
         }
 
@@ -84,13 +87,13 @@ class EncryptorFactory
 
     public function getType(string $typeName): AbstractType
     {
-        if (!\in_array($typeName, $this->typeNames, true)) {
+        if (false === \in_array($typeName, $this->typeNames, true)) {
             throw new TypeNotFoundException(\sprintf('no type found for `%s`', $typeName));
         }
 
         $type = Type::getType($typeName);
 
-        if (($type instanceof AbstractType) === false) {
+        if (false === ($type instanceof AbstractType)) {
             throw new Exception(
                 \sprintf('the encrypted type must extend `%s`', AbstractType::class),
             );
