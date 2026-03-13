@@ -72,7 +72,12 @@ php_cs_fixer() {
     print_command "start php cs fixer"
     println ""
 
-    run_in_container_dev ./vendor/bin/php-cs-fixer fix "$@"
+    local files=()
+    while IFS= read -r f; do
+        [[ -n "$f" ]] && files+=("$f")
+    done <<< "${STAGED_FILES_PHP}"
+
+    run_in_container_dev ./vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.dist.php "${files[@]}"
 
     if [[ $? != 0 ]]; then
         print_error "fix the errors before commit"
