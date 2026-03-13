@@ -19,9 +19,14 @@ class Configuration implements ConfigurationInterface
 
         $treeBuilder->getRootNode()
             ->children()
-            ->scalarNode('salt')->isRequired()->end()
-            /* all types are enabled by default */
-            ->arrayNode('enabled_types')->scalarPrototype()->defaultNull()->end();
+                ->scalarNode('salt')->isRequired()->end()
+                /* all types are enabled by default */
+                ->arrayNode('enabled_types')->scalarPrototype()->defaultNull()->end()
+            ->end()
+            ->children()
+                /* all encryptors are enabled by default */
+                ->arrayNode('encryptors')->scalarPrototype()->defaultNull()->end()
+            ->end();
 
         return $treeBuilder;
     }

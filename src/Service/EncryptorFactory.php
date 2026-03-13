@@ -24,23 +24,32 @@ class EncryptorFactory
     /** @var string[] */
     private array $typeNames;
 
-    public function __construct(iterable $encryptors)
+    /**
+     * @param array<string> $enabledEncryptors class names of encryptors to enable; empty means all
+     */
+    public function __construct(iterable $encryptors, array $enabledEncryptors = [])
     {
-        /** @todo register only the configured encryptors */
         $this->encryptors = [];
         $this->typeNames = [];
 
         /** @var EncryptorInterface $encryptor */
         foreach ($encryptors as $encryptor) {
-            $typeName = $encryptor->getTypeName();
-
-            if (true === \in_array($typeName, $this->typeNames, true)) {
-                throw new DuplicateEncryptorException(
-                    \sprintf('multiple encryptors defined for type `%s`', $typeName),
-                );
+            if ([] !== $enabledEncryptors && false === \in_array($encryptor::class, $enabledEncryptors, true)) {
+                continue;
             }
 
-            $this->typeNames[] = $typeName;
+            $typeName = $encryptor->getTypeName();
+
+            if (null !== $typeName) {
+                if (true === \in_array($typeName, $this->typeNames, true)) {
+                    throw new DuplicateEncryptorException(
+                        \sprintf('multiple encryptors defined for type `%s`', $typeName),
+                    );
+                }
+
+                $this->typeNames[] = $typeName;
+            }
+
             $this->encryptors[$encryptor::class] = $encryptor;
         }
     }

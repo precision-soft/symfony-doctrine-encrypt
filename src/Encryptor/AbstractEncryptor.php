@@ -13,9 +13,10 @@ use PrecisionSoft\Doctrine\Encrypt\Type\AbstractType;
 
 abstract class AbstractEncryptor
 {
-    protected const ENCRYPTION_MARKER = '<ENC>';
+    public const ENCRYPTION_MARKER = '<ENC>';
 
     public function __construct(
+        #[\SensitiveParameter]
         protected readonly string $salt,
     ) {}
 

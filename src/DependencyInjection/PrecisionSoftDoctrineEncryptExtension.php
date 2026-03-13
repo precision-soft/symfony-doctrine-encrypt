@@ -27,5 +27,6 @@ class PrecisionSoftDoctrineEncryptExtension extends Extension
 
         $containerBuilder->setParameter('precision_soft_doctrine_encrypt.salt', $config['salt']);
         $containerBuilder->setParameter('precision_soft_doctrine_encrypt.enabled_types', $config['enabled_types']);
+        $containerBuilder->setParameter('precision_soft_doctrine_encrypt.encryptors', $config['encryptors']);
     }
 }

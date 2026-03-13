@@ -40,7 +40,8 @@ return static function (ContainerConfigurator $containerConfigurator): void {
 
     $services->set(EncryptorFactory::class)
         ->public()
-        ->arg('$encryptors', new TaggedIteratorArgument(PrecisionSoftDoctrineEncryptExtension::DOCTRINE_ENCRYPTOR));
+        ->arg('$encryptors', new TaggedIteratorArgument(PrecisionSoftDoctrineEncryptExtension::DOCTRINE_ENCRYPTOR))
+        ->arg('$enabledEncryptors', '%precision_soft_doctrine_encrypt.encryptors%');
 
     $services->set(AbstractDatabaseCommand::class)
         ->abstract()

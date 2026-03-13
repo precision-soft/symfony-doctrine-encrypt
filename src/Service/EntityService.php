@@ -8,10 +8,13 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Encrypt\Service;
 
+use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\Persistence\Mapping\ClassMetadata;
 use PrecisionSoft\Doctrine\Encrypt\Contract\EncryptorInterface;
 use PrecisionSoft\Doctrine\Encrypt\Dto\EntityMetadataDto;
+use PrecisionSoft\Doctrine\Encrypt\Encryptor\AbstractEncryptor;
 use PrecisionSoft\Doctrine\Encrypt\Exception\FieldNotEncryptedException;
 
 class EntityService
@@ -47,6 +50,21 @@ class EntityService
         return isset($encryptionFields[$field]);
     }
 
+    /**
+     * Returns true if the field is mapped with an encrypted Doctrine type.
+     *
+     * @param object|string $entity object instance or class string
+     */
+    public function isEncrypted(
+        object|string $entity,
+        string $field,
+        ?string $managerName = null,
+    ): bool {
+        $class = \is_object($entity) ? $entity::class : $entity;
+
+        return $this->hasEncryptor($class, $field, $managerName);
+    }
+
     public function encrypt(
         string $data,
         string $class,
@@ -67,6 +85,59 @@ class EntityService
         $encryptor = $this->getEncryptor($class, $field, $managerName);
 
         return $encryptor->decrypt($encryptedData);
+    }
+
+    /**
+     * Encrypts $value using the encryptor configured for the given field and sets it as a query parameter.
+     * Requires the field to use a fixed (deterministic) encryptor such as AES256FixedType,
+     * otherwise the encrypted value will differ on every call and the WHERE will never match.
+     */
+    public function setEncryptedParameter(
+        QueryBuilder $queryBuilder,
+        string $paramName,
+        string $class,
+        string $field,
+        string $value,
+        ?string $managerName = null,
+    ): void {
+        $encryptor = $this->getEncryptor($class, $field, $managerName);
+
+        $queryBuilder->setParameter($paramName, $encryptor->encrypt($value));
+    }
+
+    /**
+     * Returns true if the raw database value for the given field on the given entity is currently encrypted.
+     * Performs an extra DBAL query to read the raw column value.
+     */
+    public function isValueEncrypted(
+        object $entity,
+        string $field,
+        ?string $managerName = null,
+    ): bool {
+        /** @var EntityManagerInterface $entityManager */
+        $entityManager = $this->managerRegistry->getManager($managerName);
+
+        /** @var \Doctrine\ORM\Mapping\ClassMetadata $classMetadata */
+        $classMetadata = $entityManager->getClassMetadata($entity::class);
+
+        $columnName = $classMetadata->getColumnName($field);
+        $tableName = $classMetadata->getTableName();
+        $identifiers = $classMetadata->getIdentifierValues($entity);
+
+        $queryBuilder = $entityManager->getConnection()->createQueryBuilder()
+            ->select($columnName)
+            ->from($tableName);
+
+        foreach ($identifiers as $idField => $idValue) {
+            $idColumn = $classMetadata->getColumnName($idField);
+            $queryBuilder
+                ->andWhere($idColumn . ' = :' . $idField)
+                ->setParameter($idField, $idValue);
+        }
+
+        $rawValue = $queryBuilder->executeQuery()->fetchOne();
+
+        return \str_starts_with((string) $rawValue, AbstractEncryptor::ENCRYPTION_MARKER);
     }
 
     /** @return EntityMetadataDto[] */
