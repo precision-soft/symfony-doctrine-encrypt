@@ -25,31 +25,35 @@ class PrecisionSoftDoctrineEncryptBundle extends Bundle
 
     private function registerTypes(): void
     {
-        /* this required because of how doctrine instantiates its types */
-
-        /** @var EncryptorFactory $encryptorFactory */
+        /**
+         * @important this is required because of how doctrine instantiates its types.
+         *
+         * @var EncryptorFactory $encryptorFactory
+         */
         $encryptorFactory = $this->container->get(EncryptorFactory::class);
 
+        /** @var string[] $enabledTypes */
         $enabledTypes = $this->container->getParameter('precision_soft_doctrine_encrypt.enabled_types');
-        $diff = \array_diff($enabledTypes, $encryptorFactory->getTypeNames());
-        if ($diff) {
-            throw new TypeNotFoundException(\sprintf('no type found for `%s`', \implode(', ', $diff)));
+        $missingTypes = \array_diff($enabledTypes, $encryptorFactory->getTypeNames());
+
+        if ([] !== $missingTypes) {
+            throw new TypeNotFoundException(\sprintf('no type found for `%s`', \implode(', ', $missingTypes)));
         }
 
         foreach ($encryptorFactory->getEncryptors() as $encryptor) {
             $typeClass = $encryptor->getTypeClass();
 
-            if (!$typeClass) {
+            if (null === $typeClass) {
                 continue;
             }
 
             $typeName = $encryptor->getTypeName();
 
-            if ($enabledTypes && !\in_array($typeName, $enabledTypes, true)) {
+            if ([] !== $enabledTypes && false === \in_array($typeName, $enabledTypes, true)) {
                 continue;
             }
 
-            if (!Type::hasType($typeName)) {
+            if (false === Type::hasType($typeName)) {
                 Type::addType($typeName, $typeClass);
             }
 

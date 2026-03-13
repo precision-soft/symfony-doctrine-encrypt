@@ -9,8 +9,7 @@ declare(strict_types=1);
 namespace PrecisionSoft\Doctrine\Encrypt\Exception;
 
 /**
- * used to stop a flow
- * if thrown should also always be caught in this package.
+ * used to stop an internal flow, if thrown, it should always be caught within this package.
  *
  * @internal
  */

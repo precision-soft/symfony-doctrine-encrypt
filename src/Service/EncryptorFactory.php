@@ -25,14 +25,16 @@ class EncryptorFactory
     private array $typeNames;
 
     /**
-     * @param array<string> $enabledEncryptors class names of encryptors to enable; empty means all
+     * @param iterable<EncryptorInterface> $encryptors
+     * @param string[] $enabledEncryptors
      */
-    public function __construct(iterable $encryptors, array $enabledEncryptors = [])
-    {
+    public function __construct(
+        iterable $encryptors,
+        array $enabledEncryptors = [],
+    ) {
         $this->encryptors = [];
         $this->typeNames = [];
 
-        /** @var EncryptorInterface $encryptor */
         foreach ($encryptors as $encryptor) {
             if ([] !== $enabledEncryptors && false === \in_array($encryptor::class, $enabledEncryptors, true)) {
                 continue;
@@ -74,6 +76,9 @@ class EncryptorFactory
         return $this->typeNames;
     }
 
+    /**
+     * @param class-string $encryptorClass
+     */
     public function getEncryptor(string $encryptorClass): EncryptorInterface
     {
         if (false === isset($this->encryptors[$encryptorClass])) {
@@ -86,7 +91,7 @@ class EncryptorFactory
     public function getEncryptorByType(string $typeName): EncryptorInterface
     {
         foreach ($this->encryptors as $encryptor) {
-            if ($encryptor->getTypeName() === $typeName) {
+            if ($typeName === $encryptor->getTypeName()) {
                 return $encryptor;
             }
         }

@@ -30,7 +30,7 @@ class DatabaseDecryptCommand extends AbstractDatabaseCommand
         try {
             $entitiesWithEncryption = $this->entityService->getEntitiesWithEncryption($this->getManagerName());
 
-            if (true === empty($entitiesWithEncryption)) {
+            if ([] === $entitiesWithEncryption) {
                 $this->warning('no entities found to decrypt');
 
                 throw new StopException();
@@ -44,8 +44,7 @@ class DatabaseDecryptCommand extends AbstractDatabaseCommand
             }
 
             $this->success('decryption finished');
-        } catch (StopException $throwable) {
-            /* ignore */
+        } catch (StopException) {
         } catch (Throwable $throwable) {
             $this->error($throwable->getMessage(), $throwable);
 
@@ -78,7 +77,7 @@ class DatabaseDecryptCommand extends AbstractDatabaseCommand
             ->getQuery()
             ->getSingleScalarResult();
 
-        $progressBar = new ProgressBar($this->output, (int) $total);
+        $progressBar = new ProgressBar($this->output, (int)$total);
         $offset = 0;
 
         do {

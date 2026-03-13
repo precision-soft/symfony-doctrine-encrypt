@@ -68,7 +68,6 @@ class AES256Encryptor extends AbstractEncryptor implements EncryptorInterface
     public function decrypt(string $data): string
     {
         if (false === \str_starts_with($data, self::ENCRYPTION_MARKER . self::GLUE)) {
-            /** @todo have an option in the bundle config to return or throw exception */
             return $data;
         }
 

@@ -16,17 +16,23 @@ class Configuration implements ConfigurationInterface
     public function getConfigTreeBuilder(): TreeBuilder
     {
         $treeBuilder = new TreeBuilder('precision_soft_doctrine_encrypt');
+        $rootNode = $treeBuilder->getRootNode();
 
-        $treeBuilder->getRootNode()
-            ->children()
-                ->scalarNode('salt')->isRequired()->end()
-                /* all types are enabled by default */
-                ->arrayNode('enabled_types')->scalarPrototype()->defaultNull()->end()
-            ->end()
-            ->children()
-                /* all encryptors are enabled by default */
-                ->arrayNode('encryptors')->scalarPrototype()->defaultNull()->end()
+        $children = $rootNode->children();
+        $children->scalarNode('salt')
+            ->isRequired()
             ->end();
+        $children->arrayNode('enabled_types')
+            ->scalarPrototype()
+                ->defaultNull()
+            ->end()
+            ->end();
+        $children->arrayNode('encryptors')
+            ->scalarPrototype()
+                ->defaultNull()
+            ->end()
+            ->end();
+        $children->end();
 
         return $treeBuilder;
     }

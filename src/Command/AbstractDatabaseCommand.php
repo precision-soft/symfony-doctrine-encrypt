@@ -87,7 +87,6 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
 
     private function getQuestionText(array $questionParts): string
     {
-        /** @todo allow styles */
         $maxLength = 0;
 
         foreach ($questionParts as $questionPart) {

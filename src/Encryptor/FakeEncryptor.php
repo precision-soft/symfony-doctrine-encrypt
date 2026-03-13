@@ -11,8 +11,6 @@ namespace PrecisionSoft\Doctrine\Encrypt\Encryptor;
 use PrecisionSoft\Doctrine\Encrypt\Contract\EncryptorInterface;
 
 /**
- * used by the encrypt and decrypt command.
- *
  * @internal
  */
 final class FakeEncryptor implements EncryptorInterface

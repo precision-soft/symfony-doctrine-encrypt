@@ -29,7 +29,7 @@ abstract class AbstractEncryptor
         }
 
         /** @var class-string<AbstractType> $typeClass */
-        if (false === is_a($typeClass, AbstractType::class, true)) {
+        if (false === \is_a($typeClass, AbstractType::class, true)) {
             throw new Exception('invalid encryption type class');
         }
 

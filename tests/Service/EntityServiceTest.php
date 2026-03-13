@@ -154,10 +154,10 @@ final class EntityServiceTest extends AbstractTestCase
             ->with($class)
             ->andReturn($classMetadataMock);
 
-        $encryped = $mock->encrypt($data, $class, $field);
-        $dencryped = $encryptor->decrypt($encryped);
+        $encryptedData = $mock->encrypt($data, $class, $field);
+        $decryptedData = $encryptor->decrypt($encryptedData);
 
-        static::assertSame($data, $dencryped);
+        static::assertSame($data, $decryptedData);
     }
 
     public function testGetEntitiesWithEncryption(): void
@@ -193,8 +193,8 @@ final class EntityServiceTest extends AbstractTestCase
             ->once()
             ->andReturn([$classMetadataMock]);
 
-        $entites = $mock->getEntitiesWithEncryption();
+        $entities = $mock->getEntitiesWithEncryption();
 
-        static::assertIsArray($entites);
+        static::assertIsArray($entities);
     }
 }

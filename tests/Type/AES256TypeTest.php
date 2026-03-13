@@ -45,7 +45,7 @@ final class AES256TypeTest extends TestCase
         $result = $this->type->convertToDatabaseValue('plaintext', $platform);
 
         static::assertNotSame('plaintext', $result);
-        static::assertStringStartsWith('<ENC>', (string) $result);
+        static::assertStringStartsWith('<ENC>', (string)$result);
     }
 
     public function testConvertToPHPValueDecryptsValue(): void
