@@ -31,8 +31,7 @@ class EncryptorFactory
     public function __construct(
         iterable $encryptors,
         array $enabledEncryptors = [],
-    )
-    {
+    ) {
         $this->encryptors = [];
         $this->typeNames = [];
 
