@@ -1,80 +1,170 @@
-# Doctrine encrypt
+# Symfony Doctrine Encrypt Bundle
 
-The bundle will automatically register the types from **\PrecisionSoft\Doctrine\Encrypt\Type** as Doctrine types.
+Symfony bundle for transparent AES-256 field-level encryption of Doctrine ORM entity fields via custom Doctrine types.
 
-It can be used for any string field.
+**You may fork and modify it as you wish. Contributions are welcomed.**
 
-**You may fork and modify it as you wish**.
+## Requirements
 
-**Contributions are welcomed**.
+- PHP 8.2+ with `ext-openssl`
+- Doctrine ORM 3.*
+- Doctrine DBAL 3.* or 4.*
+- Symfony 7.*
 
-## Purpose
+## Installation
 
-Encrypt and decrypt data using Doctrine.
+```shell
+composer require precision-soft/symfony-doctrine-encrypt
+```
 
-I am trying to solve a few problems that i found with the current offerings:
+Register the bundle in `config/bundles.php`:
 
-* Have encrypt and decrypt available if using entities or just selecting fields.
-* Easy where (_for the moment the parameters have to be encrypted before setting them_).
+```php
+return [
+    /* ... */
+    PrecisionSoft\Doctrine\Encrypt\PrecisionSoftDoctrineEncryptBundle::class => ['all' => true],
+];
+```
+
+## Configuration
+
+Create `config/packages/precision_soft_doctrine_encrypt.yaml`:
+
+```yaml
+precision_soft_doctrine_encrypt:
+    # Required. Minimum 32 characters. Keep this secret and stable — changing it renders all encrypted data unreadable.
+    salt: '%env(APP_ENCRYPTION_SALT)%'
+
+    # Optional. Restrict which encryptors are active. When empty, all registered encryptors are enabled.
+    # encryptors:
+    #     - PrecisionSoft\Doctrine\Encrypt\Encryptor\AES256Encryptor
+    #     - PrecisionSoft\Doctrine\Encrypt\Encryptor\AES256FixedEncryptor
+
+    # Optional. Restrict which Doctrine types are registered. When empty, all types are registered.
+    # enabled_types:
+    #     - encryptedAES256
+    #     - encryptedAES256fixed
+```
+
+Add the salt to your `.env`:
+
+```dotenv
+APP_ENCRYPTION_SALT=your-random-salt-of-at-least-32-characters
+```
+
+## Encryption types
+
+| Type | Doctrine type name | Use case |
+|---|---|---|
+| `AES256Type` | `encryptedAES256` | General encryption — different ciphertext each time (non-deterministic) |
+| `AES256FixedType` | `encryptedAES256fixed` | Deterministic encryption — same plaintext always produces the same ciphertext, enabling `WHERE` queries |
 
 ## Usage
 
-* The value on the entity will always be unencrypted.
-* The purpose for **AES256FixedEncryptor**, **AES256FixedType** pair is to be able to use **WHERE**, as it will always return the same result for the same input.
-* **EntityService::getEncryptor()** will return the encryptor used for the field, if you need to encrypt a value to use it as a **WHERE** parameter.
-* Inside entity:
+### Entity mapping
 
 ```php
+use Doctrine\ORM\Mapping as ORM;
+
+#[ORM\Entity]
 class Customer
 {
-    /**
-     * @ORM\Column(type="encryptedAES256")
-     */
+    /* non-deterministic — secure for data at rest, cannot be queried with where */
+    #[ORM\Column(type: 'encryptedAES256')]
     private string $name;
 
-    public function getName(): ?string
-    {
-        return $this->name;
+    /* deterministic — same input always produces the same ciphertext, enabling where queries */
+    #[ORM\Column(type: 'encryptedAES256fixed')]
+    private string $email;
+}
+```
+
+The entity always holds the plaintext value. Encryption and decryption happen transparently at the persistence layer.
+
+### WHERE queries with encrypted fields
+
+`encryptedAES256fixed` fields can be searched with a WHERE clause. Use `EntityService::setEncryptedParameter()` to encrypt the search value before binding it:
+
+```php
+use PrecisionSoft\Doctrine\Encrypt\Service\EntityService;
+
+class CustomerRepository extends ServiceEntityRepository
+{
+    public function __construct(
+        ManagerRegistry $registry,
+        private readonly EntityService $entityService,
+    ) {
+        parent::__construct($registry, Customer::class);
     }
 
-    public function setName(string $name): self
+    public function findByEmail(string $email): ?Customer
     {
-        $this->name = $name;
+        $qb = $this->createQueryBuilder('c')
+            ->where('c.email = :email');
 
-        return $this;
+        $this->entityService->setEncryptedParameter($qb, 'email', Customer::class, 'email', $email);
+
+        return $qb->getQuery()->getOneOrNullResult();
     }
 }
 ```
 
-* To encrypt an unencrypted database:
+### EntityService API
 
-```shell script 
+| Method | Description |
+|---|---|
+| `getEncryptor(class, field)` | Returns the encryptor configured for the field |
+| `hasEncryptor(class, field)` | Returns `true` if the field uses an encrypted type |
+| `isEncrypted(entity\|class, field)` | Same as `hasEncryptor`, accepts object or class string |
+| `encrypt(data, class, field)` | Encrypts a value using the field's encryptor |
+| `decrypt(data, class, field)` | Decrypts a value using the field's encryptor |
+| `setEncryptedParameter(qb, param, class, field, value)` | Encrypts a value and sets it as a query parameter |
+| `isValueEncrypted(entity, field)` | Reads the raw DB column and checks if it is currently encrypted (additional DBAL query) |
+| `getEntitiesWithEncryption(manager?)` | Returns all entity classes that have at least one encrypted field |
+
+## Commands
+
+Encrypt an unencrypted database (after enabling the bundle on an existing database):
+
+```shell
 php bin/console precision-soft:doctrine:database:encrypt
 ```
 
-* To decrypt an encrypted database:
+Decrypt an encrypted database (before disabling the bundle):
 
-```shell script 
+```shell
 php bin/console precision-soft:doctrine:database:decrypt
 ```
+
+Both commands process entities in batches of 50 and ask for confirmation before running. Pass `--no-interaction` to skip the confirmation prompt in automated environments.
+
+Use the `--manager` option to target a specific Doctrine entity manager:
+
+```shell
+php bin/console precision-soft:doctrine:database:encrypt --manager=secondary
+```
+
+## Security considerations
+
+- **Salt stability**: The salt is the encryption key. If it changes, all existing encrypted data becomes unreadable. Store it in a secret manager and never rotate it without first decrypting the database.
+- **Non-deterministic vs deterministic**: `AES256Type` uses a random nonce per encryption, so the same plaintext produces different ciphertext on each call — this is the secure default. `AES256FixedType` uses a deterministic nonce derived from the plaintext, enabling `WHERE` queries but leaking the fact that two rows have the same value.
+- **MAC verification**: Every encrypted value includes an HMAC-SHA256 tag. Tampered or corrupted values are rejected on decryption.
+- **Plaintext serialisation**: Values are PHP-serialised before encryption. On decryption, only scalar strings are accepted (`allowed_classes: false`), preventing object injection.
 
 ## Dev
 
 ```shell
 git clone git@gitlab.com:precision-soft-open-source/symfony/doctrine-encrypt.git
 cd doctrine-encrypt
-
-./dc build && ./dc up -d
+composer install
+vendor/bin/phpunit
 ```
 
 ## Todo
 
-* Easy where, pass the unencrypted params and have them automatically encrypt.
-* Configure registered encryptors.
-* Have a **isEncrypted($entity, $fieldName): bool** method.
-* Unit tests.
+- **Easy WHERE** — pass unencrypted parameters to QueryBuilder and have them automatically encrypted (currently requires manual `setEncryptedParameter()` calls).
 
 ## Inspired by
 
-* https://github.com/GiveMeAllYourCats/DoctrineEncryptBundle
-* https://github.com/jackprice/doctrine-encrypt
+- https://github.com/GiveMeAllYourCats/DoctrineEncryptBundle
+- https://github.com/jackprice/doctrine-encrypt

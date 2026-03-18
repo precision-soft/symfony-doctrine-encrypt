@@ -15,6 +15,7 @@ use Mockery;
 use Mockery\MockInterface;
 use PrecisionSoft\Doctrine\Encrypt\Contract\EncryptorInterface;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\AES256Encryptor;
+use PrecisionSoft\Doctrine\Encrypt\Exception\FieldNotEncryptedException;
 use PrecisionSoft\Doctrine\Encrypt\Service\EncryptorFactory;
 use PrecisionSoft\Doctrine\Encrypt\Service\EntityService;
 use PrecisionSoft\Doctrine\Encrypt\Type\AES256Type;
@@ -158,6 +159,156 @@ final class EntityServiceTest extends AbstractTestCase
         $decryptedData = $encryptor->decrypt($encryptedData);
 
         static::assertSame($data, $decryptedData);
+    }
+
+    public function testDecrypt(): void
+    {
+        $class = 'class';
+        $field = 'field';
+        $encryptor = new AES256Encryptor(\uniqid(\uniqid(\uniqid('', true), true), true));
+        $encrypted = $encryptor->encrypt('secret');
+
+        /** @var EntityService|MockInterface $mock */
+        $mock = $this->get(EntityService::class);
+
+        $encryptorFactoryMock = $this->get(EncryptorFactory::class);
+        $encryptorFactoryMock->shouldReceive('getTypeNames')
+            ->once()
+            ->andReturn([AES256Type::getFullName()]);
+        $encryptorFactoryMock->shouldReceive('getEncryptorByType')
+            ->once()
+            ->andReturn($encryptor);
+
+        $classMetadataMock = Mockery::mock(ClassMetadata::class);
+        $classMetadataMock->shouldReceive('getFieldNames')
+            ->once()
+            ->andReturn([$field]);
+        $classMetadataMock->shouldReceive('getTypeOfField')
+            ->once()
+            ->andReturn(AES256Type::getFullName());
+
+        $classMetadataFactory = Mockery::mock(ClassMetadataFactory::class);
+
+        $entityManagerMock = $this->get(EntityManagerInterface::class);
+        $entityManagerMock->shouldReceive('getMetadataFactory')
+            ->once()
+            ->andReturn($classMetadataFactory);
+        $classMetadataFactory->shouldReceive('getMetadataFor')
+            ->once()
+            ->with($class)
+            ->andReturn($classMetadataMock);
+
+        $decrypted = $mock->decrypt($encrypted, $class, $field);
+
+        static::assertSame('secret', $decrypted);
+    }
+
+    public function testIsEncryptedWithObject(): void
+    {
+        $field = 'field';
+        $entity = new \stdClass();
+        $class = $entity::class;
+
+        /** @var EntityService|MockInterface $mock */
+        $mock = $this->get(EntityService::class);
+
+        $encryptorFactoryMock = $this->get(EncryptorFactory::class);
+        $encryptorFactoryMock->shouldReceive('getTypeNames')
+            ->once()
+            ->andReturn([AES256Type::getFullName()]);
+
+        $classMetadataMock = Mockery::mock(ClassMetadata::class);
+        $classMetadataMock->shouldReceive('getFieldNames')
+            ->once()
+            ->andReturn([$field]);
+        $classMetadataMock->shouldReceive('getTypeOfField')
+            ->once()
+            ->andReturn(AES256Type::getFullName());
+
+        $classMetadataFactory = Mockery::mock(ClassMetadataFactory::class);
+
+        $entityManagerMock = $this->get(EntityManagerInterface::class);
+        $entityManagerMock->shouldReceive('getMetadataFactory')
+            ->once()
+            ->andReturn($classMetadataFactory);
+        $classMetadataFactory->shouldReceive('getMetadataFor')
+            ->once()
+            ->with($class)
+            ->andReturn($classMetadataMock);
+
+        static::assertTrue($mock->isEncrypted($entity, $field));
+    }
+
+    public function testIsEncryptedReturnsFalseForNonEncryptedField(): void
+    {
+        $class = 'class';
+        $field = 'field';
+
+        /** @var EntityService|MockInterface $mock */
+        $mock = $this->get(EntityService::class);
+
+        $encryptorFactoryMock = $this->get(EncryptorFactory::class);
+        $encryptorFactoryMock->shouldReceive('getTypeNames')
+            ->once()
+            ->andReturn([AES256Type::getFullName()]);
+
+        $classMetadataMock = Mockery::mock(ClassMetadata::class);
+        $classMetadataMock->shouldReceive('getFieldNames')
+            ->once()
+            ->andReturn([$field]);
+        $classMetadataMock->shouldReceive('getTypeOfField')
+            ->once()
+            ->andReturn('string');
+
+        $classMetadataFactory = Mockery::mock(ClassMetadataFactory::class);
+
+        $entityManagerMock = $this->get(EntityManagerInterface::class);
+        $entityManagerMock->shouldReceive('getMetadataFactory')
+            ->once()
+            ->andReturn($classMetadataFactory);
+        $classMetadataFactory->shouldReceive('getMetadataFor')
+            ->once()
+            ->with($class)
+            ->andReturn($classMetadataMock);
+
+        static::assertFalse($mock->isEncrypted($class, $field));
+    }
+
+    public function testGetEncryptorThrowsFieldNotEncryptedException(): void
+    {
+        $class = 'class';
+        $field = 'nonEncryptedField';
+
+        /** @var EntityService|MockInterface $mock */
+        $mock = $this->get(EntityService::class);
+
+        $encryptorFactoryMock = $this->get(EncryptorFactory::class);
+        $encryptorFactoryMock->shouldReceive('getTypeNames')
+            ->once()
+            ->andReturn([AES256Type::getFullName()]);
+
+        $classMetadataMock = Mockery::mock(ClassMetadata::class);
+        $classMetadataMock->shouldReceive('getFieldNames')
+            ->once()
+            ->andReturn([$field]);
+        $classMetadataMock->shouldReceive('getTypeOfField')
+            ->once()
+            ->andReturn('string');
+
+        $classMetadataFactory = Mockery::mock(ClassMetadataFactory::class);
+
+        $entityManagerMock = $this->get(EntityManagerInterface::class);
+        $entityManagerMock->shouldReceive('getMetadataFactory')
+            ->once()
+            ->andReturn($classMetadataFactory);
+        $classMetadataFactory->shouldReceive('getMetadataFor')
+            ->once()
+            ->with($class)
+            ->andReturn($classMetadataMock);
+
+        $this->expectException(FieldNotEncryptedException::class);
+
+        $mock->getEncryptor($class, $field);
     }
 
     public function testGetEntitiesWithEncryption(): void

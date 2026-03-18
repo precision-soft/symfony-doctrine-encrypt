@@ -13,6 +13,9 @@ use Mockery\MockInterface;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\AES256Encryptor;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\AES256FixedEncryptor;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\FakeEncryptor;
+use PrecisionSoft\Doctrine\Encrypt\Exception\DuplicateEncryptorException;
+use PrecisionSoft\Doctrine\Encrypt\Exception\EncryptorNotFoundException;
+use PrecisionSoft\Doctrine\Encrypt\Exception\TypeNotFoundException;
 use PrecisionSoft\Doctrine\Encrypt\Service\EncryptorFactory;
 use PrecisionSoft\Doctrine\Encrypt\Type\AES256Type;
 use PrecisionSoft\Symfony\Phpunit\MockDto;
@@ -70,5 +73,96 @@ final class EncryptorFactoryTest extends AbstractTestCase
         $type = $mock->getType(AES256Type::getFullName());
 
         static::assertInstanceOf(AES256Type::class, $type);
+    }
+
+    public function testGetEncryptors(): void
+    {
+        /** @var EncryptorFactory $mock */
+        $mock = $this->get(EncryptorFactory::class);
+
+        static::assertIsArray($mock->getEncryptors());
+        static::assertNotEmpty($mock->getEncryptors());
+    }
+
+    public function testGetTypeNames(): void
+    {
+        /** @var EncryptorFactory $mock */
+        $mock = $this->get(EncryptorFactory::class);
+
+        static::assertIsArray($mock->getTypeNames());
+        static::assertNotEmpty($mock->getTypeNames());
+    }
+
+    public function testGetEncryptorThrowsNotFoundException(): void
+    {
+        /** @var EncryptorFactory $mock */
+        $mock = $this->get(EncryptorFactory::class);
+
+        $this->expectException(EncryptorNotFoundException::class);
+
+        $mock->getEncryptor('NonExistentEncryptorClass');
+    }
+
+    public function testGetEncryptorByTypeThrowsNotFoundException(): void
+    {
+        /** @var EncryptorFactory $mock */
+        $mock = $this->get(EncryptorFactory::class);
+
+        $this->expectException(EncryptorNotFoundException::class);
+
+        $mock->getEncryptorByType('nonExistentType');
+    }
+
+    public function testGetTypeThrowsTypeNotFoundException(): void
+    {
+        /** @var EncryptorFactory $mock */
+        $mock = $this->get(EncryptorFactory::class);
+
+        $this->expectException(TypeNotFoundException::class);
+
+        $mock->getType('nonExistentType');
+    }
+
+    public function testDuplicateEncryptorThrowsException(): void
+    {
+        $salt = \str_repeat('a', 32);
+
+        $this->expectException(DuplicateEncryptorException::class);
+
+        new EncryptorFactory([
+            new AES256Encryptor($salt),
+            new AES256Encryptor($salt),
+        ]);
+    }
+
+    public function testEnabledEncryptorsFiltering(): void
+    {
+        $salt = \str_repeat('a', 32);
+
+        $factory = new EncryptorFactory(
+            [
+                new AES256Encryptor($salt),
+                new AES256FixedEncryptor($salt),
+            ],
+            [AES256Encryptor::class],
+        );
+
+        static::assertCount(1, $factory->getEncryptors());
+        static::assertArrayHasKey(AES256Encryptor::class, $factory->getEncryptors());
+    }
+
+    public function testEnabledEncryptorsFilteringSkipsFakeEncryptor(): void
+    {
+        $salt = \str_repeat('a', 32);
+
+        $factory = new EncryptorFactory(
+            [
+                new AES256Encryptor($salt),
+                new FakeEncryptor(),
+            ],
+            [AES256Encryptor::class],
+        );
+
+        static::assertCount(1, $factory->getEncryptors());
     }
 }

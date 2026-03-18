@@ -66,7 +66,7 @@ final class AES256EncryptorTest extends TestCase
     {
         $encrypted = $this->encryptor->encrypt('value');
 
-        // tamper with the MAC portion
+        /* tamper with the mac portion */
         $parts = \explode("\0", $encrypted);
         $parts[2] = \base64_encode(\str_repeat('x', 32));
         $tampered = \implode("\0", $parts);
