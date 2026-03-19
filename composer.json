@@ -9,7 +9,7 @@
         "encrypt",
         "decrypt"
     ],
-    "homepage": "https://gitlab.com/precision-soft-open-source/symfony/doctrine-encrypt",
+    "homepage": "https://github.com/precision-soft/symfony-doctrine-encrypt",
     "license": "MIT",
     "authors": [
         {
