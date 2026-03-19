@@ -15,6 +15,8 @@ abstract class AbstractEncryptor
 {
     public const ENCRYPTION_MARKER = '<ENC>';
 
+    abstract public function getTypeClass(): ?string;
+
     public function __construct(
         #[\SensitiveParameter]
         protected readonly string $salt,

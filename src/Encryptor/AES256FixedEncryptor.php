@@ -136,7 +136,7 @@ class AES256FixedEncryptor extends AbstractEncryptor implements EncryptorInterfa
         $nonce = '';
 
         for ($position = 1; $position <= $size; ++$position) {
-            $nonce .= $data[($position % $dataSize) - 1];
+            $nonce .= $data[($position - 1) % $dataSize];
         }
 
         return $nonce;
