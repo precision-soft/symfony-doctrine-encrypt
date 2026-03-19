@@ -1,6 +1,6 @@
 #!/bin/bash
 
-. "${PWD}/dev/utility.sh"
+. "${PWD}/.dev/utility.sh"
 
 create_env() {
     if [[ ! -e ${DOCKER_PATH}.env.local ]]; then
@@ -9,7 +9,7 @@ create_env() {
         touch ${DOCKER_PATH}.env.local
     fi
 
-    rm -rf .git/hooks && ln -s ../dev/git-hooks .git/hooks
+    rm -rf .git/hooks && ln -s ../.dev/git-hooks .git/hooks
 }
 
 create_env

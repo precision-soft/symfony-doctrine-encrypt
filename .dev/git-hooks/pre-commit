@@ -1,6 +1,6 @@
 #!/bin/bash
 
-. "${PWD}/dev/utility.sh"
+. "${PWD}/.dev/utility.sh"
 
 stop() {
     if [[ "$2" != "" ]]; then

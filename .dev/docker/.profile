@@ -1,7 +1,7 @@
 #!/bin/bash
 
-if [[ -f /var/www/html/dev/utility.sh ]]; then
-    . /var/www/html/dev/utility.sh
+if [[ -f /var/www/html/.dev/utility.sh ]]; then
+    . /var/www/html/.dev/utility.sh
 fi
 
 if [[ -f ~/.bashrc ]]; then

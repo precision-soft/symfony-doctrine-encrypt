@@ -802,7 +802,7 @@
                 }
             ],
             "description": "symfony console utilities",
-            "homepage": "https://gitlab.com/precision-soft-open-source/symfony/console",
+            "homepage": "https://github.com/precision-soft/symfony-console",
             "keywords": [
                 "console",
                 "cronjob",

@@ -12,7 +12,7 @@ else
     COLOR_RED=''
 fi
 
-DOCKER_PATH="dev/docker/"
+DOCKER_PATH=".dev/docker/"
 CONTAINER_DEV="dev"
 
 error() {
