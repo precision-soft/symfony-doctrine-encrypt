@@ -154,7 +154,7 @@ php bin/console precision-soft:doctrine:database:encrypt --manager=secondary
 ## Dev
 
 ```shell
-git clone git@gitlab.com:precision-soft-open-source/symfony/doctrine-encrypt.git
+git clone git@github.com:precision-soft/symfony-doctrine-encrypt.git
 cd doctrine-encrypt
 composer install
 vendor/bin/phpunit

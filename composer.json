@@ -1,7 +1,7 @@
 {
     "name": "precision-soft/symfony-doctrine-encrypt",
     "type": "symfony-bundle",
-    "version": "v2.2.3",
+    "version": "v2.2.4",
     "description": "doctrine encrypt type",
     "keywords": [
         "symfony",
