@@ -19,12 +19,13 @@ use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\Persistence\Mapping\ClassMetadata;
 use Mockery;
 use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
+use Mockery\MockInterface;
 use PHPUnit\Framework\TestCase;
-use PrecisionSoft\Doctrine\Encrypt\Encryptor\AES256Encryptor;
-use PrecisionSoft\Doctrine\Encrypt\Encryptor\AES256FixedEncryptor;
+use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256Encryptor;
+use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256FixedEncryptor;
 use PrecisionSoft\Doctrine\Encrypt\Service\EncryptorFactory;
 use PrecisionSoft\Doctrine\Encrypt\Service\EntityService;
-use PrecisionSoft\Doctrine\Encrypt\Type\AES256FixedType;
+use PrecisionSoft\Doctrine\Encrypt\Type\Aes256FixedType;
 use stdClass;
 
 /**
@@ -37,19 +38,15 @@ final class EntityServiceExtendedTest extends TestCase
     use MockeryPHPUnitIntegration;
 
     private string $salt;
-    private AES256Encryptor $aes256Encryptor;
-    private AES256FixedEncryptor $aes256FixedEncryptor;
+    private Aes256Encryptor $aes256Encryptor;
+    private Aes256FixedEncryptor $aes256FixedEncryptor;
 
     protected function setUp(): void
     {
         $this->salt = \str_repeat('e', 32);
-        $this->aes256Encryptor = new AES256Encryptor($this->salt);
-        $this->aes256FixedEncryptor = new AES256FixedEncryptor($this->salt);
+        $this->aes256Encryptor = new Aes256Encryptor($this->salt);
+        $this->aes256FixedEncryptor = new Aes256FixedEncryptor($this->salt);
     }
-
-    // ──────────────────────────────────────────────
-    //  isValueEncrypted()
-    // ──────────────────────────────────────────────
 
     public function testIsValueEncryptedReturnsTrueForEncryptedValue(): void
     {
@@ -133,10 +130,6 @@ final class EntityServiceExtendedTest extends TestCase
         static::assertSame(true, $entityService->isValueEncrypted($entity, 'secretField'));
     }
 
-    // ──────────────────────────────────────────────
-    //  setEncryptedParameter()
-    // ──────────────────────────────────────────────
-
     public function testSetEncryptedParameterSetsEncryptedValueOnQueryBuilder(): void
     {
         $class = 'App\\Entity\\User';
@@ -144,7 +137,7 @@ final class EntityServiceExtendedTest extends TestCase
         $plaintext = 'user@example.com';
 
         $encryptorFactory = $this->createEncryptorFactoryMock(
-            [AES256FixedType::getFullName()],
+            [Aes256FixedType::getFullName()],
             $this->aes256FixedEncryptor,
         );
 
@@ -153,7 +146,7 @@ final class EntityServiceExtendedTest extends TestCase
             ->andReturn([$field]);
         $classMetadataMock->shouldReceive('getTypeOfField')
             ->with($field)
-            ->andReturn(AES256FixedType::getFullName());
+            ->andReturn(Aes256FixedType::getFullName());
 
         $classMetadataFactory = Mockery::mock(ClassMetadataFactory::class);
         $classMetadataFactory->shouldReceive('getMetadataFor')
@@ -196,7 +189,7 @@ final class EntityServiceExtendedTest extends TestCase
         $managerName = 'custom_manager';
 
         $encryptorFactory = $this->createEncryptorFactoryMock(
-            [AES256FixedType::getFullName()],
+            [Aes256FixedType::getFullName()],
             $this->aes256FixedEncryptor,
         );
 
@@ -205,7 +198,7 @@ final class EntityServiceExtendedTest extends TestCase
             ->andReturn([$field]);
         $classMetadataMock->shouldReceive('getTypeOfField')
             ->with($field)
-            ->andReturn(AES256FixedType::getFullName());
+            ->andReturn(Aes256FixedType::getFullName());
 
         $classMetadataFactory = Mockery::mock(ClassMetadataFactory::class);
         $classMetadataFactory->shouldReceive('getMetadataFor')
@@ -241,10 +234,6 @@ final class EntityServiceExtendedTest extends TestCase
         );
     }
 
-    // ──────────────────────────────────────────────
-    //  Helpers
-    // ──────────────────────────────────────────────
-
     /**
      * @param array<string, mixed> $identifiers
      *
@@ -268,7 +257,6 @@ final class EntityServiceExtendedTest extends TestCase
             ->with($entity)
             ->andReturn($identifiers);
 
-        // Map identifier fields to their column names.
         foreach ($identifiers as $idField => $idValue) {
             $ormClassMetadata->shouldReceive('getColumnName')
                 ->with($idField)
@@ -322,7 +310,7 @@ final class EntityServiceExtendedTest extends TestCase
     private function createEncryptorFactoryMock(
         array $typeNames,
         mixed $encryptor,
-    ): EncryptorFactory {
+    ): MockInterface&EncryptorFactory {
         $encryptorFactory = Mockery::mock(EncryptorFactory::class);
         $encryptorFactory->shouldReceive('getTypeNames')
             ->andReturn($typeNames);

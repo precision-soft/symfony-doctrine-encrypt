@@ -8,10 +8,10 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Encrypt\Type;
 
-class AES256FixedType extends AbstractType
+class Aes256FixedType extends AbstractType
 {
     protected static function getShortName(): string
     {
-        return 'AES256fixed';
+        return 'Aes256fixed';
     }
 }

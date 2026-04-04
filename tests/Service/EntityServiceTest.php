@@ -14,11 +14,11 @@ use Doctrine\Persistence\Mapping\ClassMetadata;
 use Mockery;
 use Mockery\MockInterface;
 use PrecisionSoft\Doctrine\Encrypt\Contract\EncryptorInterface;
-use PrecisionSoft\Doctrine\Encrypt\Encryptor\AES256Encryptor;
+use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256Encryptor;
 use PrecisionSoft\Doctrine\Encrypt\Exception\FieldNotEncryptedException;
 use PrecisionSoft\Doctrine\Encrypt\Service\EncryptorFactory;
 use PrecisionSoft\Doctrine\Encrypt\Service\EntityService;
-use PrecisionSoft\Doctrine\Encrypt\Type\AES256Type;
+use PrecisionSoft\Doctrine\Encrypt\Type\Aes256Type;
 use PrecisionSoft\Symfony\Phpunit\Mock\ManagerRegistryMock;
 use PrecisionSoft\Symfony\Phpunit\MockDto;
 use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
@@ -53,10 +53,10 @@ final class EntityServiceTest extends AbstractTestCase
         $encryptorFactoryMock = $this->get(EncryptorFactory::class);
         $encryptorFactoryMock->shouldReceive('getTypeNames')
             ->once()
-            ->andReturn([AES256Type::getFullName()]);
+            ->andReturn([Aes256Type::getFullName()]);
         $encryptorFactoryMock->shouldReceive('getEncryptorByType')
             ->once()
-            ->andReturn(new AES256Encryptor($salt));
+            ->andReturn(new Aes256Encryptor($salt));
 
         $classMetadataMock = Mockery::mock(ClassMetadata::class);
         $classMetadataMock->shouldReceive('getFieldNames')
@@ -64,7 +64,7 @@ final class EntityServiceTest extends AbstractTestCase
             ->andReturn([$field]);
         $classMetadataMock->shouldReceive('getTypeOfField')
             ->once()
-            ->andReturn(AES256Type::getFullName());
+            ->andReturn(Aes256Type::getFullName());
 
         $classMetadataFactory = Mockery::mock(ClassMetadataFactory::class);
 
@@ -93,7 +93,7 @@ final class EntityServiceTest extends AbstractTestCase
         $encryptorFactoryMock = $this->get(EncryptorFactory::class);
         $encryptorFactoryMock->shouldReceive('getTypeNames')
             ->once()
-            ->andReturn([AES256Type::getFullName()]);
+            ->andReturn([Aes256Type::getFullName()]);
 
         $classMetadataMock = Mockery::mock(ClassMetadata::class);
         $classMetadataMock->shouldReceive('getFieldNames')
@@ -101,7 +101,7 @@ final class EntityServiceTest extends AbstractTestCase
             ->andReturn([$field]);
         $classMetadataMock->shouldReceive('getTypeOfField')
             ->once()
-            ->andReturn(AES256Type::getFullName());
+            ->andReturn(Aes256Type::getFullName());
 
         $classMetadataFactory = Mockery::mock(ClassMetadataFactory::class);
 
@@ -124,7 +124,7 @@ final class EntityServiceTest extends AbstractTestCase
         $data = 'data';
         $class = 'class';
         $field = 'field';
-        $aes256Encryptor = new AES256Encryptor(\uniqid(\uniqid(\uniqid('', true), true), true));
+        $aes256Encryptor = new Aes256Encryptor(\uniqid(\uniqid(\uniqid('', true), true), true));
 
         /** @var EntityService|MockInterface $entityService */
         $entityService = $this->get(EntityService::class);
@@ -132,7 +132,7 @@ final class EntityServiceTest extends AbstractTestCase
         $encryptorFactoryMock = $this->get(EncryptorFactory::class);
         $encryptorFactoryMock->shouldReceive('getTypeNames')
             ->once()
-            ->andReturn([AES256Type::getFullName()]);
+            ->andReturn([Aes256Type::getFullName()]);
         $encryptorFactoryMock->shouldReceive('getEncryptorByType')
             ->once()
             ->andReturn($aes256Encryptor);
@@ -143,7 +143,7 @@ final class EntityServiceTest extends AbstractTestCase
             ->andReturn([$field]);
         $classMetadataMock->shouldReceive('getTypeOfField')
             ->once()
-            ->andReturn(AES256Type::getFullName());
+            ->andReturn(Aes256Type::getFullName());
 
         $classMetadataFactory = Mockery::mock(ClassMetadataFactory::class);
 
@@ -166,7 +166,7 @@ final class EntityServiceTest extends AbstractTestCase
     {
         $class = 'class';
         $field = 'field';
-        $aes256Encryptor = new AES256Encryptor(\uniqid(\uniqid(\uniqid('', true), true), true));
+        $aes256Encryptor = new Aes256Encryptor(\uniqid(\uniqid(\uniqid('', true), true), true));
         $encrypted = $aes256Encryptor->encrypt('secret');
 
         /** @var EntityService|MockInterface $entityService */
@@ -175,7 +175,7 @@ final class EntityServiceTest extends AbstractTestCase
         $encryptorFactoryMock = $this->get(EncryptorFactory::class);
         $encryptorFactoryMock->shouldReceive('getTypeNames')
             ->once()
-            ->andReturn([AES256Type::getFullName()]);
+            ->andReturn([Aes256Type::getFullName()]);
         $encryptorFactoryMock->shouldReceive('getEncryptorByType')
             ->once()
             ->andReturn($aes256Encryptor);
@@ -186,7 +186,7 @@ final class EntityServiceTest extends AbstractTestCase
             ->andReturn([$field]);
         $classMetadataMock->shouldReceive('getTypeOfField')
             ->once()
-            ->andReturn(AES256Type::getFullName());
+            ->andReturn(Aes256Type::getFullName());
 
         $classMetadataFactory = Mockery::mock(ClassMetadataFactory::class);
 
@@ -216,7 +216,7 @@ final class EntityServiceTest extends AbstractTestCase
         $encryptorFactoryMock = $this->get(EncryptorFactory::class);
         $encryptorFactoryMock->shouldReceive('getTypeNames')
             ->once()
-            ->andReturn([AES256Type::getFullName()]);
+            ->andReturn([Aes256Type::getFullName()]);
 
         $classMetadataMock = Mockery::mock(ClassMetadata::class);
         $classMetadataMock->shouldReceive('getFieldNames')
@@ -224,7 +224,7 @@ final class EntityServiceTest extends AbstractTestCase
             ->andReturn([$field]);
         $classMetadataMock->shouldReceive('getTypeOfField')
             ->once()
-            ->andReturn(AES256Type::getFullName());
+            ->andReturn(Aes256Type::getFullName());
 
         $classMetadataFactory = Mockery::mock(ClassMetadataFactory::class);
 
@@ -251,7 +251,7 @@ final class EntityServiceTest extends AbstractTestCase
         $encryptorFactoryMock = $this->get(EncryptorFactory::class);
         $encryptorFactoryMock->shouldReceive('getTypeNames')
             ->once()
-            ->andReturn([AES256Type::getFullName()]);
+            ->andReturn([Aes256Type::getFullName()]);
 
         $classMetadataMock = Mockery::mock(ClassMetadata::class);
         $classMetadataMock->shouldReceive('getFieldNames')
@@ -286,7 +286,7 @@ final class EntityServiceTest extends AbstractTestCase
         $encryptorFactoryMock = $this->get(EncryptorFactory::class);
         $encryptorFactoryMock->shouldReceive('getTypeNames')
             ->once()
-            ->andReturn([AES256Type::getFullName()]);
+            ->andReturn([Aes256Type::getFullName()]);
 
         $classMetadataMock = Mockery::mock(ClassMetadata::class);
         $classMetadataMock->shouldReceive('getFieldNames')
@@ -322,7 +322,7 @@ final class EntityServiceTest extends AbstractTestCase
         $encryptorFactoryMock = $this->get(EncryptorFactory::class);
         $encryptorFactoryMock->shouldReceive('getTypeNames')
             ->once()
-            ->andReturn([AES256Type::getFullName()]);
+            ->andReturn([Aes256Type::getFullName()]);
 
         $classMetadataMock = Mockery::mock(ClassMetadata::class);
         $classMetadataMock->shouldReceive('getFieldNames')
@@ -330,7 +330,7 @@ final class EntityServiceTest extends AbstractTestCase
             ->andReturn([$field]);
         $classMetadataMock->shouldReceive('getTypeOfField')
             ->once()
-            ->andReturn(AES256Type::getFullName());
+            ->andReturn(Aes256Type::getFullName());
         $classMetadataMock->shouldReceive('getName')
             ->once()
             ->andReturn('test');

@@ -50,14 +50,14 @@ final class ConfigurationTest extends TestCase
             [
                 [
                     'salt' => 'my-secret-salt',
-                    'enabled_types' => ['encryptedAES256', 'encryptedAES256fixed'],
+                    'enabled_types' => ['encryptedAes256', 'encryptedAes256fixed'],
                     'encryptors' => ['App\\Encryptor\\CustomEncryptor'],
                 ],
             ],
         );
 
         static::assertSame('my-secret-salt', $config['salt']);
-        static::assertSame(['encryptedAES256', 'encryptedAES256fixed'], $config['enabled_types']);
+        static::assertSame(['encryptedAes256', 'encryptedAes256fixed'], $config['enabled_types']);
         static::assertSame(['App\\Encryptor\\CustomEncryptor'], $config['encryptors']);
     }
 
@@ -84,7 +84,6 @@ final class ConfigurationTest extends TestCase
             ],
         );
 
-        static::assertSame(true, \is_array($config['enabled_types']));
         static::assertSame([], $config['enabled_types']);
     }
 
@@ -99,7 +98,6 @@ final class ConfigurationTest extends TestCase
             ],
         );
 
-        static::assertSame(true, \is_array($config['encryptors']));
         static::assertSame([], $config['encryptors']);
     }
 
@@ -127,9 +125,7 @@ final class ConfigurationTest extends TestCase
             ],
         );
 
-        // The last value wins for scalar nodes.
         static::assertSame('second-salt', $config['salt']);
-        // Array nodes are merged.
         static::assertSame(['type1', 'type2'], $config['enabled_types']);
     }
 }

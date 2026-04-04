@@ -10,22 +10,22 @@ namespace PrecisionSoft\Doctrine\Encrypt\Test\Encryptor;
 
 use PHPUnit\Framework\TestCase;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\AbstractEncryptor;
-use PrecisionSoft\Doctrine\Encrypt\Encryptor\AES256FixedEncryptor;
+use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256FixedEncryptor;
 use PrecisionSoft\Doctrine\Encrypt\Exception\Exception;
-use PrecisionSoft\Doctrine\Encrypt\Type\AES256FixedType;
+use PrecisionSoft\Doctrine\Encrypt\Type\Aes256FixedType;
 
 /**
  * @internal
  */
-final class AES256FixedEncryptorTest extends TestCase
+final class Aes256FixedEncryptorTest extends TestCase
 {
     private string $salt;
-    private AES256FixedEncryptor $aes256FixedEncryptor;
+    private Aes256FixedEncryptor $aes256FixedEncryptor;
 
     protected function setUp(): void
     {
         $this->salt = \str_repeat('b', 32);
-        $this->aes256FixedEncryptor = new AES256FixedEncryptor($this->salt);
+        $this->aes256FixedEncryptor = new Aes256FixedEncryptor($this->salt);
     }
 
     public function testEncryptDecryptRoundTrip(): void
@@ -81,7 +81,7 @@ final class AES256FixedEncryptorTest extends TestCase
         $this->expectException(Exception::class);
         $this->expectExceptionMessage('invalid encryption salt');
 
-        new AES256FixedEncryptor('short');
+        new Aes256FixedEncryptor('short');
     }
 
     public function testEncryptEmptyStringIsDeterministic(): void
@@ -92,13 +92,13 @@ final class AES256FixedEncryptorTest extends TestCase
         static::assertSame($first, $second);
     }
 
-    public function testGetTypeClassReturnsAES256FixedType(): void
+    public function testGetTypeClassReturnsAes256FixedType(): void
     {
-        static::assertSame(AES256FixedType::class, $this->aes256FixedEncryptor->getTypeClass());
+        static::assertSame(Aes256FixedType::class, $this->aes256FixedEncryptor->getTypeClass());
     }
 
     public function testGetTypeNameReturnsFullName(): void
     {
-        static::assertSame(AES256FixedType::getFullName(), $this->aes256FixedEncryptor->getTypeName());
+        static::assertSame(Aes256FixedType::getFullName(), $this->aes256FixedEncryptor->getTypeName());
     }
 }

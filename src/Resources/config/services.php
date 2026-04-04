@@ -11,8 +11,8 @@ use PrecisionSoft\Doctrine\Encrypt\Command\DatabaseDecryptCommand;
 use PrecisionSoft\Doctrine\Encrypt\Command\DatabaseEncryptCommand;
 use PrecisionSoft\Doctrine\Encrypt\DependencyInjection\PrecisionSoftDoctrineEncryptExtension;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\AbstractEncryptor;
-use PrecisionSoft\Doctrine\Encrypt\Encryptor\AES256Encryptor;
-use PrecisionSoft\Doctrine\Encrypt\Encryptor\AES256FixedEncryptor;
+use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256Encryptor;
+use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256FixedEncryptor;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\FakeEncryptor;
 use PrecisionSoft\Doctrine\Encrypt\Service\EncryptorFactory;
 use PrecisionSoft\Doctrine\Encrypt\Service\EntityService;
@@ -27,14 +27,14 @@ return static function (ContainerConfigurator $containerConfigurator): void {
         ->abstract()
         ->arg('$salt', '%precision_soft_doctrine_encrypt.salt%');
 
-    $services->set(AES256Encryptor::class)
+    $services->set(Aes256Encryptor::class)
         ->parent(AbstractEncryptor::class)
         ->tag(PrecisionSoftDoctrineEncryptExtension::DOCTRINE_ENCRYPTOR);
 
     $services->set(FakeEncryptor::class)
         ->tag(PrecisionSoftDoctrineEncryptExtension::DOCTRINE_ENCRYPTOR);
 
-    $services->set(AES256FixedEncryptor::class)
+    $services->set(Aes256FixedEncryptor::class)
         ->parent(AbstractEncryptor::class)
         ->tag(PrecisionSoftDoctrineEncryptExtension::DOCTRINE_ENCRYPTOR);
 

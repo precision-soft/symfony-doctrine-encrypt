@@ -13,10 +13,10 @@ use Doctrine\DBAL\Types\Type;
 use Mockery;
 use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
 use PHPUnit\Framework\TestCase;
-use PrecisionSoft\Doctrine\Encrypt\Encryptor\AES256Encryptor;
+use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256Encryptor;
 use PrecisionSoft\Doctrine\Encrypt\Exception\Exception;
-use PrecisionSoft\Doctrine\Encrypt\Type\AES256FixedType;
-use PrecisionSoft\Doctrine\Encrypt\Type\AES256Type;
+use PrecisionSoft\Doctrine\Encrypt\Type\Aes256FixedType;
+use PrecisionSoft\Doctrine\Encrypt\Type\Aes256Type;
 
 /**
  * Tests for AbstractType methods not covered by concrete type tests.
@@ -29,13 +29,13 @@ final class AbstractTypeTest extends TestCase
 
     public function testGetEncryptorReturnsConfiguredEncryptor(): void
     {
-        if (false === Type::hasType(AES256Type::getFullName())) {
-            Type::addType(AES256Type::getFullName(), AES256Type::class);
+        if (false === Type::hasType(Aes256Type::getFullName())) {
+            Type::addType(Aes256Type::getFullName(), Aes256Type::class);
         }
 
-        /** @var AES256Type $aes256Type */
-        $aes256Type = Type::getType(AES256Type::getFullName());
-        $aes256Encryptor = new AES256Encryptor(\str_repeat('g', 32));
+        /** @var Aes256Type $aes256Type */
+        $aes256Type = Type::getType(Aes256Type::getFullName());
+        $aes256Encryptor = new Aes256Encryptor(\str_repeat('g', 32));
         $aes256Type->setEncryptor($aes256Encryptor);
 
         static::assertSame($aes256Encryptor, $aes256Type->getEncryptor());
@@ -43,12 +43,12 @@ final class AbstractTypeTest extends TestCase
 
     public function testGetEncryptorWithoutSettingItThrowsException(): void
     {
-        if (false === Type::hasType('encryptedAES256_getencryptor_test')) {
-            Type::addType('encryptedAES256_getencryptor_test', AES256Type::class);
+        if (false === Type::hasType('encryptedAes256_getencryptor_test')) {
+            Type::addType('encryptedAes256_getencryptor_test', Aes256Type::class);
         }
 
-        /** @var AES256Type $bareType */
-        $bareType = Type::getType('encryptedAES256_getencryptor_test');
+        /** @var Aes256Type $bareType */
+        $bareType = Type::getType('encryptedAes256_getencryptor_test');
 
         $this->expectException(Exception::class);
         $this->expectExceptionMessage('the encryptor was not set');
@@ -58,13 +58,13 @@ final class AbstractTypeTest extends TestCase
 
     public function testSetEncryptorReturnsSelf(): void
     {
-        if (false === Type::hasType(AES256Type::getFullName())) {
-            Type::addType(AES256Type::getFullName(), AES256Type::class);
+        if (false === Type::hasType(Aes256Type::getFullName())) {
+            Type::addType(Aes256Type::getFullName(), Aes256Type::class);
         }
 
-        /** @var AES256Type $aes256Type */
-        $aes256Type = Type::getType(AES256Type::getFullName());
-        $aes256Encryptor = new AES256Encryptor(\str_repeat('h', 32));
+        /** @var Aes256Type $aes256Type */
+        $aes256Type = Type::getType(Aes256Type::getFullName());
+        $aes256Encryptor = new Aes256Encryptor(\str_repeat('h', 32));
 
         $returnedAbstractType = $aes256Type->setEncryptor($aes256Encryptor);
 
@@ -73,12 +73,12 @@ final class AbstractTypeTest extends TestCase
 
     public function testConvertToPHPValueWithoutEncryptorThrowsException(): void
     {
-        if (false === Type::hasType('encryptedAES256_phpval_test')) {
-            Type::addType('encryptedAES256_phpval_test', AES256Type::class);
+        if (false === Type::hasType('encryptedAes256_phpval_test')) {
+            Type::addType('encryptedAes256_phpval_test', Aes256Type::class);
         }
 
-        /** @var AES256Type $bareType */
-        $bareType = Type::getType('encryptedAES256_phpval_test');
+        /** @var Aes256Type $bareType */
+        $bareType = Type::getType('encryptedAes256_phpval_test');
 
         /** @var AbstractPlatform $platform */
         $platform = Mockery::mock(AbstractPlatform::class);
@@ -89,13 +89,13 @@ final class AbstractTypeTest extends TestCase
         $bareType->convertToPHPValue('some-value', $platform);
     }
 
-    public function testGetFullNameForAES256Type(): void
+    public function testGetFullNameForAes256Type(): void
     {
-        static::assertSame('encryptedAES256', AES256Type::getFullName());
+        static::assertSame('encryptedAes256', Aes256Type::getFullName());
     }
 
-    public function testGetFullNameForAES256FixedType(): void
+    public function testGetFullNameForAes256FixedType(): void
     {
-        static::assertSame('encryptedAES256fixed', AES256FixedType::getFullName());
+        static::assertSame('encryptedAes256fixed', Aes256FixedType::getFullName());
     }
 }

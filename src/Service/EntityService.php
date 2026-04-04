@@ -48,7 +48,7 @@ class EntityService
     ): bool {
         $encryptionFields = $this->getEncryptedFields($class, $managerName);
 
-        return isset($encryptionFields[$field]);
+        return true === isset($encryptionFields[$field]);
     }
 
     /**
@@ -89,7 +89,7 @@ class EntityService
     /**
      * encrypts the given value with the encryptor configured for the field and sets it as a query parameter.
      *
-     * the field must use a deterministic encryptor such as AES256FixedType, otherwise the encrypted value changes on each call and the generated WHERE clause will never match.
+     * the field must use a deterministic encryptor such as Aes256FixedType, otherwise the encrypted value changes on each call and the generated WHERE clause will never match.
      */
     public function setEncryptedParameter(
         QueryBuilder $queryBuilder,
@@ -137,7 +137,7 @@ class EntityService
 
         $rawValue = $queryBuilder->executeQuery()->fetchOne();
 
-        return \str_starts_with((string)$rawValue, AbstractEncryptor::ENCRYPTION_MARKER);
+        return true === \str_starts_with((string)$rawValue, AbstractEncryptor::ENCRYPTION_MARKER);
     }
 
     /**

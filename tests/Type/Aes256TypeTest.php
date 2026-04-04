@@ -13,30 +13,30 @@ use Doctrine\DBAL\Types\Type;
 use Mockery;
 use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
 use PHPUnit\Framework\TestCase;
-use PrecisionSoft\Doctrine\Encrypt\Encryptor\AES256Encryptor;
+use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256Encryptor;
 use PrecisionSoft\Doctrine\Encrypt\Exception\Exception;
-use PrecisionSoft\Doctrine\Encrypt\Type\AES256Type;
+use PrecisionSoft\Doctrine\Encrypt\Type\Aes256Type;
 
 /**
  * @internal
  */
-final class AES256TypeTest extends TestCase
+final class Aes256TypeTest extends TestCase
 {
     use MockeryPHPUnitIntegration;
 
-    private AES256Type $aes256Type;
-    private AES256Encryptor $aes256Encryptor;
+    private Aes256Type $aes256Type;
+    private Aes256Encryptor $aes256Encryptor;
 
     protected function setUp(): void
     {
-        if (false === Type::hasType(AES256Type::getFullName())) {
-            Type::addType(AES256Type::getFullName(), AES256Type::class);
+        if (false === Type::hasType(Aes256Type::getFullName())) {
+            Type::addType(Aes256Type::getFullName(), Aes256Type::class);
         }
 
-        /** @var AES256Type $aes256Type */
-        $aes256Type = Type::getType(AES256Type::getFullName());
+        /** @var Aes256Type $aes256Type */
+        $aes256Type = Type::getType(Aes256Type::getFullName());
         $this->aes256Type = $aes256Type;
-        $this->aes256Encryptor = new AES256Encryptor(\str_repeat('c', 32));
+        $this->aes256Encryptor = new Aes256Encryptor(\str_repeat('c', 32));
         $this->aes256Type->setEncryptor($this->aes256Encryptor);
     }
 
@@ -80,12 +80,12 @@ final class AES256TypeTest extends TestCase
 
     public function testConvertWithoutEncryptorThrowsException(): void
     {
-        if (false === Type::hasType('encryptedAES256_test')) {
-            Type::addType('encryptedAES256_test', AES256Type::class);
+        if (false === Type::hasType('encryptedAes256_test')) {
+            Type::addType('encryptedAes256_test', Aes256Type::class);
         }
 
-        /** @var AES256Type $bareType */
-        $bareType = Type::getType('encryptedAES256_test');
+        /** @var Aes256Type $bareType */
+        $bareType = Type::getType('encryptedAes256_test');
 
         /** @var AbstractPlatform $platform */
         $platform = Mockery::mock(AbstractPlatform::class);

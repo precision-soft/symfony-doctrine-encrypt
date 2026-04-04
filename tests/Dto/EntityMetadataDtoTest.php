@@ -24,29 +24,29 @@ final class EntityMetadataDtoTest extends TestCase
     public function testGetClassMetadata(): void
     {
         $classMetadata = Mockery::mock(ClassMetadata::class);
-        $fields = ['email' => 'encryptedAES256'];
+        $fields = ['email' => 'encryptedAes256'];
 
-        $dto = new EntityMetadataDto($classMetadata, $fields);
+        $entityMetadataDto = new EntityMetadataDto($classMetadata, $fields);
 
-        static::assertSame($classMetadata, $dto->getClassMetadata());
+        static::assertSame($classMetadata, $entityMetadataDto->getClassMetadata());
     }
 
     public function testGetEncryptionFields(): void
     {
         $classMetadata = Mockery::mock(ClassMetadata::class);
-        $fields = ['email' => 'encryptedAES256', 'ssn' => 'encryptedAES256fixed'];
+        $fields = ['email' => 'encryptedAes256', 'ssn' => 'encryptedAes256fixed'];
 
-        $dto = new EntityMetadataDto($classMetadata, $fields);
+        $entityMetadataDto = new EntityMetadataDto($classMetadata, $fields);
 
-        static::assertSame($fields, $dto->getEncryptionFields());
+        static::assertSame($fields, $entityMetadataDto->getEncryptionFields());
     }
 
     public function testEmptyEncryptionFields(): void
     {
         $classMetadata = Mockery::mock(ClassMetadata::class);
 
-        $dto = new EntityMetadataDto($classMetadata, []);
+        $entityMetadataDto = new EntityMetadataDto($classMetadata, []);
 
-        static::assertSame([], $dto->getEncryptionFields());
+        static::assertSame([], $entityMetadataDto->getEncryptionFields());
     }
 }

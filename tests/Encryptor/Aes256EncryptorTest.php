@@ -10,22 +10,22 @@ namespace PrecisionSoft\Doctrine\Encrypt\Test\Encryptor;
 
 use PHPUnit\Framework\TestCase;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\AbstractEncryptor;
-use PrecisionSoft\Doctrine\Encrypt\Encryptor\AES256Encryptor;
+use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256Encryptor;
 use PrecisionSoft\Doctrine\Encrypt\Exception\Exception;
-use PrecisionSoft\Doctrine\Encrypt\Type\AES256Type;
+use PrecisionSoft\Doctrine\Encrypt\Type\Aes256Type;
 
 /**
  * @internal
  */
-final class AES256EncryptorTest extends TestCase
+final class Aes256EncryptorTest extends TestCase
 {
     private string $salt;
-    private AES256Encryptor $aes256Encryptor;
+    private Aes256Encryptor $aes256Encryptor;
 
     protected function setUp(): void
     {
         $this->salt = \str_repeat('a', 32);
-        $this->aes256Encryptor = new AES256Encryptor($this->salt);
+        $this->aes256Encryptor = new Aes256Encryptor($this->salt);
     }
 
     public function testEncryptDecryptRoundTrip(): void
@@ -81,16 +81,16 @@ final class AES256EncryptorTest extends TestCase
         $this->expectException(Exception::class);
         $this->expectExceptionMessage('invalid encryption salt');
 
-        new AES256Encryptor('short');
+        new Aes256Encryptor('short');
     }
 
-    public function testGetTypeClassReturnsAES256Type(): void
+    public function testGetTypeClassReturnsAes256Type(): void
     {
-        static::assertSame(AES256Type::class, $this->aes256Encryptor->getTypeClass());
+        static::assertSame(Aes256Type::class, $this->aes256Encryptor->getTypeClass());
     }
 
     public function testGetTypeNameReturnsFullName(): void
     {
-        static::assertSame(AES256Type::getFullName(), $this->aes256Encryptor->getTypeName());
+        static::assertSame(Aes256Type::getFullName(), $this->aes256Encryptor->getTypeName());
     }
 }

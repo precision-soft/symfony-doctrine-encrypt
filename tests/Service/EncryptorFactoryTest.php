@@ -10,14 +10,14 @@ namespace PrecisionSoft\Doctrine\Encrypt\Test\Service;
 
 use Doctrine\DBAL\Types\Type;
 use Mockery\MockInterface;
-use PrecisionSoft\Doctrine\Encrypt\Encryptor\AES256Encryptor;
-use PrecisionSoft\Doctrine\Encrypt\Encryptor\AES256FixedEncryptor;
+use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256Encryptor;
+use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256FixedEncryptor;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\FakeEncryptor;
 use PrecisionSoft\Doctrine\Encrypt\Exception\DuplicateEncryptorException;
 use PrecisionSoft\Doctrine\Encrypt\Exception\EncryptorNotFoundException;
 use PrecisionSoft\Doctrine\Encrypt\Exception\TypeNotFoundException;
 use PrecisionSoft\Doctrine\Encrypt\Service\EncryptorFactory;
-use PrecisionSoft\Doctrine\Encrypt\Type\AES256Type;
+use PrecisionSoft\Doctrine\Encrypt\Type\Aes256Type;
 use PrecisionSoft\Symfony\Phpunit\MockDto;
 use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
 
@@ -31,8 +31,8 @@ final class EncryptorFactoryTest extends AbstractTestCase
         $salt = \uniqid(\uniqid(\uniqid('', true), true), true);
 
         $encryptors = [
-            new AES256Encryptor($salt),
-            new AES256FixedEncryptor($salt),
+            new Aes256Encryptor($salt),
+            new Aes256FixedEncryptor($salt),
             new FakeEncryptor(),
         ];
 
@@ -48,9 +48,9 @@ final class EncryptorFactoryTest extends AbstractTestCase
         /** @var EncryptorFactory|MockInterface $encryptorFactory */
         $encryptorFactory = $this->get(EncryptorFactory::class);
 
-        $encryptor = $encryptorFactory->getEncryptor(AES256FixedEncryptor::class);
+        $encryptor = $encryptorFactory->getEncryptor(Aes256FixedEncryptor::class);
 
-        static::assertInstanceOf(AES256FixedEncryptor::class, $encryptor);
+        static::assertInstanceOf(Aes256FixedEncryptor::class, $encryptor);
     }
 
     public function testGetEncryptorByType(): void
@@ -58,9 +58,9 @@ final class EncryptorFactoryTest extends AbstractTestCase
         /** @var EncryptorFactory|MockInterface $encryptorFactory */
         $encryptorFactory = $this->get(EncryptorFactory::class);
 
-        $encryptor = $encryptorFactory->getEncryptorByType(AES256Type::getFullName());
+        $encryptor = $encryptorFactory->getEncryptorByType(Aes256Type::getFullName());
 
-        static::assertInstanceOf(AES256Encryptor::class, $encryptor);
+        static::assertInstanceOf(Aes256Encryptor::class, $encryptor);
     }
 
     public function testGetType(): void
@@ -68,13 +68,13 @@ final class EncryptorFactoryTest extends AbstractTestCase
         /** @var EncryptorFactory|MockInterface $encryptorFactory */
         $encryptorFactory = $this->get(EncryptorFactory::class);
 
-        if (false === Type::hasType(AES256Type::getFullName())) {
-            Type::addType(AES256Type::getFullName(), AES256Type::class);
+        if (false === Type::hasType(Aes256Type::getFullName())) {
+            Type::addType(Aes256Type::getFullName(), Aes256Type::class);
         }
 
-        $abstractType = $encryptorFactory->getType(AES256Type::getFullName());
+        $abstractType = $encryptorFactory->getType(Aes256Type::getFullName());
 
-        static::assertInstanceOf(AES256Type::class, $abstractType);
+        static::assertInstanceOf(Aes256Type::class, $abstractType);
     }
 
     public function testGetEncryptors(): void
@@ -132,8 +132,8 @@ final class EncryptorFactoryTest extends AbstractTestCase
         $this->expectException(DuplicateEncryptorException::class);
 
         new EncryptorFactory([
-            new AES256Encryptor($salt),
-            new AES256Encryptor($salt),
+            new Aes256Encryptor($salt),
+            new Aes256Encryptor($salt),
         ]);
     }
 
@@ -143,14 +143,14 @@ final class EncryptorFactoryTest extends AbstractTestCase
 
         $encryptorFactoryInstance = new EncryptorFactory(
             [
-                new AES256Encryptor($salt),
-                new AES256FixedEncryptor($salt),
+                new Aes256Encryptor($salt),
+                new Aes256FixedEncryptor($salt),
             ],
-            [AES256Encryptor::class],
+            [Aes256Encryptor::class],
         );
 
         static::assertCount(1, $encryptorFactoryInstance->getEncryptors());
-        static::assertArrayHasKey(AES256Encryptor::class, $encryptorFactoryInstance->getEncryptors());
+        static::assertArrayHasKey(Aes256Encryptor::class, $encryptorFactoryInstance->getEncryptors());
     }
 
     public function testEnabledEncryptorsFilteringSkipsFakeEncryptor(): void
@@ -159,14 +159,14 @@ final class EncryptorFactoryTest extends AbstractTestCase
 
         $encryptorFactoryInstance = new EncryptorFactory(
             [
-                new AES256Encryptor($salt),
+                new Aes256Encryptor($salt),
                 new FakeEncryptor(),
             ],
-            [AES256Encryptor::class],
+            [Aes256Encryptor::class],
         );
 
         static::assertCount(2, $encryptorFactoryInstance->getEncryptors());
-        static::assertArrayHasKey(AES256Encryptor::class, $encryptorFactoryInstance->getEncryptors());
+        static::assertArrayHasKey(Aes256Encryptor::class, $encryptorFactoryInstance->getEncryptors());
         static::assertArrayHasKey(FakeEncryptor::class, $encryptorFactoryInstance->getEncryptors());
     }
 }

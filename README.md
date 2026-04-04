@@ -36,13 +36,13 @@ precision_soft_doctrine_encrypt:
 
     # Optional. Restrict which encryptors are active. When empty, all registered encryptors are enabled.
     # encryptors:
-    #     - PrecisionSoft\Doctrine\Encrypt\Encryptor\AES256Encryptor
-    #     - PrecisionSoft\Doctrine\Encrypt\Encryptor\AES256FixedEncryptor
+    #     - PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256Encryptor
+    #     - PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256FixedEncryptor
 
     # Optional. Restrict which Doctrine types are registered. When empty, all types are registered.
     # enabled_types:
-    #     - encryptedAES256
-    #     - encryptedAES256fixed
+    #     - encryptedAes256
+    #     - encryptedAes256fixed
 ```
 
 Add the salt to your `.env`:
@@ -55,8 +55,8 @@ APP_ENCRYPTION_SALT=your-random-salt-of-at-least-32-characters
 
 | Type              | Doctrine type name     | Use case                                                                                                |
 |-------------------|------------------------|---------------------------------------------------------------------------------------------------------|
-| `AES256Type`      | `encryptedAES256`      | General encryption — different ciphertext each time (non-deterministic)                                 |
-| `AES256FixedType` | `encryptedAES256fixed` | Deterministic encryption — same plaintext always produces the same ciphertext, enabling `WHERE` queries |
+| `Aes256Type`      | `encryptedAes256`      | General encryption — different ciphertext each time (non-deterministic)                                 |
+| `Aes256FixedType` | `encryptedAes256fixed` | Deterministic encryption — same plaintext always produces the same ciphertext, enabling `WHERE` queries |
 
 ## Usage
 
@@ -72,10 +72,10 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity]
 class Customer
 {
-    #[ORM\Column(type: 'encryptedAES256')]
+    #[ORM\Column(type: 'encryptedAes256')]
     private string $name;
 
-    #[ORM\Column(type: 'encryptedAES256fixed')]
+    #[ORM\Column(type: 'encryptedAes256fixed')]
     private string $email;
 }
 ```
@@ -84,7 +84,7 @@ The entity always holds the plaintext value. Encryption and decryption happen tr
 
 ### WHERE queries with encrypted fields
 
-`encryptedAES256fixed` fields can be searched with a WHERE clause. Use `EntityService::setEncryptedParameter()` to encrypt the search value before binding it:
+`encryptedAes256fixed` fields can be searched with a WHERE clause. Use `EntityService::setEncryptedParameter()` to encrypt the search value before binding it:
 
 ```php
 <?php
@@ -154,9 +154,9 @@ php bin/console precision-soft:doctrine:database:encrypt --manager=secondary
 ## Security considerations
 
 - **Salt stability**: The salt is the encryption key. If it changes, all existing encrypted data becomes unreadable. Store it in a secret manager and never rotate it without first decrypting the database.
-- **Non-deterministic vs deterministic**: `AES256Type` uses a random nonce per encryption, so the same plaintext produces different ciphertext on each call — this is the secure default. `AES256FixedType` uses a deterministic nonce derived from the plaintext, enabling `WHERE` queries but leaking the fact that two rows have the same value.
+- **Non-deterministic vs deterministic**: `Aes256Type` uses a random nonce per encryption, so the same plaintext produces different ciphertext on each call — this is the secure default. `Aes256FixedType` uses a deterministic nonce derived from the plaintext, enabling `WHERE` queries but leaking the fact that two rows have the same value.
 - **MAC verification**: Every encrypted value includes an HMAC-SHA256 tag. Tampered or corrupted values are rejected on decryption.
-- **Plaintext serialisation**: Values are PHP-serialised before encryption. On decryption, only scalar strings are accepted (`allowed_classes: false`), preventing object injection.
+- **Raw string encryption**: Values are encrypted and decrypted as raw strings without any serialisation layer.
 - **Double-encryption protection**: The `encrypt()` method detects the encryption marker and returns already-encrypted data unchanged. This prevents accidental double-encryption when processing raw values that are already encrypted.
 - **Key derivation**: The raw salt is never used directly. Separate encryption and MAC keys are derived via HKDF (or a SHA-256 fallback), so compromising one key does not expose the other.
 
@@ -192,18 +192,18 @@ You can replace the built-in encryptor for any Doctrine type by implementing `En
 declare(strict_types=1);
 
 use PrecisionSoft\Doctrine\Encrypt\Contract\EncryptorInterface;
-use PrecisionSoft\Doctrine\Encrypt\Type\AES256Type;
+use PrecisionSoft\Doctrine\Encrypt\Type\Aes256Type;
 
 class MyCustomEncryptor implements EncryptorInterface
 {
     public function getTypeClass(): string
     {
-        return AES256Type::class;
+        return Aes256Type::class;
     }
 
     public function getTypeName(): ?string
     {
-        return AES256Type::getFullName();
+        return Aes256Type::getFullName();
     }
 
     public function encrypt(string $data): string

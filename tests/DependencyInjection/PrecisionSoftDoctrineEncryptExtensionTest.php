@@ -26,7 +26,7 @@ final class PrecisionSoftDoctrineEncryptExtensionTest extends TestCase
             [
                 [
                     'salt' => 'my-secret-salt-for-testing-1234567890',
-                    'enabled_types' => ['encryptedAES256'],
+                    'enabled_types' => ['encryptedAes256'],
                     'encryptors' => ['App\\Encryptor\\Custom'],
                 ],
             ],
@@ -38,7 +38,7 @@ final class PrecisionSoftDoctrineEncryptExtensionTest extends TestCase
             $container->getParameter('precision_soft_doctrine_encrypt.salt'),
         );
         static::assertSame(
-            ['encryptedAES256'],
+            ['encryptedAes256'],
             $container->getParameter('precision_soft_doctrine_encrypt.enabled_types'),
         );
         static::assertSame(

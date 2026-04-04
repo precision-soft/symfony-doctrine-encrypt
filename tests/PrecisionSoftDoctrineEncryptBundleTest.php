@@ -13,14 +13,14 @@ use Mockery;
 use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
 use PHPUnit\Framework\TestCase;
 use PrecisionSoft\Doctrine\Encrypt\Contract\EncryptorInterface;
-use PrecisionSoft\Doctrine\Encrypt\Encryptor\AES256Encryptor;
-use PrecisionSoft\Doctrine\Encrypt\Encryptor\AES256FixedEncryptor;
+use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256Encryptor;
+use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256FixedEncryptor;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\FakeEncryptor;
 use PrecisionSoft\Doctrine\Encrypt\Exception\TypeNotFoundException;
 use PrecisionSoft\Doctrine\Encrypt\PrecisionSoftDoctrineEncryptBundle;
 use PrecisionSoft\Doctrine\Encrypt\Service\EncryptorFactory;
-use PrecisionSoft\Doctrine\Encrypt\Type\AES256FixedType;
-use PrecisionSoft\Doctrine\Encrypt\Type\AES256Type;
+use PrecisionSoft\Doctrine\Encrypt\Type\Aes256FixedType;
+use PrecisionSoft\Doctrine\Encrypt\Type\Aes256Type;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -32,16 +32,15 @@ final class PrecisionSoftDoctrineEncryptBundleTest extends TestCase
 
     protected function setUp(): void
     {
-        // Clean up registered types from previous test runs to avoid conflicts.
-        $this->removeTypeIfExists('encryptedAES256_bundle_test');
-        $this->removeTypeIfExists('encryptedAES256fixed_bundle_test');
+        $this->removeTypeIfExists('encryptedAes256_bundle_test');
+        $this->removeTypeIfExists('encryptedAes256fixed_bundle_test');
     }
 
     public function testBootRegistersTypesAndSetsEncryptors(): void
     {
         $salt = \str_repeat('s', 32);
-        $aes256Encryptor = new AES256Encryptor($salt);
-        $aes256FixedEncryptor = new AES256FixedEncryptor($salt);
+        $aes256Encryptor = new Aes256Encryptor($salt);
+        $aes256FixedEncryptor = new Aes256FixedEncryptor($salt);
 
         $encryptorFactory = new EncryptorFactory([
             $aes256Encryptor,
@@ -61,25 +60,23 @@ final class PrecisionSoftDoctrineEncryptBundleTest extends TestCase
         $precisionSoftDoctrineEncryptBundle->setContainer($containerInterface);
         $precisionSoftDoctrineEncryptBundle->boot();
 
-        // Verify types are registered.
-        static::assertSame(true, Type::hasType(AES256Type::getFullName()));
-        static::assertSame(true, Type::hasType(AES256FixedType::getFullName()));
+        static::assertSame(true, Type::hasType(Aes256Type::getFullName()));
+        static::assertSame(true, Type::hasType(Aes256FixedType::getFullName()));
 
-        // Verify encryptors are wired.
-        /** @var AES256Type $aes256Type */
-        $aes256Type = Type::getType(AES256Type::getFullName());
+        /** @var Aes256Type $aes256Type */
+        $aes256Type = Type::getType(Aes256Type::getFullName());
         static::assertInstanceOf(EncryptorInterface::class, $aes256Type->getEncryptor());
 
-        /** @var AES256FixedType $aes256FixedType */
-        $aes256FixedType = Type::getType(AES256FixedType::getFullName());
+        /** @var Aes256FixedType $aes256FixedType */
+        $aes256FixedType = Type::getType(Aes256FixedType::getFullName());
         static::assertInstanceOf(EncryptorInterface::class, $aes256FixedType->getEncryptor());
     }
 
     public function testBootWithEnabledTypesFiltersRegistration(): void
     {
         $salt = \str_repeat('s', 32);
-        $aes256Encryptor = new AES256Encryptor($salt);
-        $aes256FixedEncryptor = new AES256FixedEncryptor($salt);
+        $aes256Encryptor = new Aes256Encryptor($salt);
+        $aes256FixedEncryptor = new Aes256FixedEncryptor($salt);
 
         $encryptorFactory = new EncryptorFactory([
             $aes256Encryptor,
@@ -93,21 +90,20 @@ final class PrecisionSoftDoctrineEncryptBundleTest extends TestCase
             ->andReturn($encryptorFactory);
         $containerInterface->shouldReceive('getParameter')
             ->with('precision_soft_doctrine_encrypt.enabled_types')
-            ->andReturn([AES256Type::getFullName()]);
+            ->andReturn([Aes256Type::getFullName()]);
 
         $precisionSoftDoctrineEncryptBundle = new PrecisionSoftDoctrineEncryptBundle();
         $precisionSoftDoctrineEncryptBundle->setContainer($containerInterface);
         $precisionSoftDoctrineEncryptBundle->boot();
 
-        // AES256Type should be registered.
-        static::assertSame(true, Type::hasType(AES256Type::getFullName()));
+        static::assertSame(true, Type::hasType(Aes256Type::getFullName()));
     }
 
     public function testBootThrowsTypeNotFoundExceptionForMissingType(): void
     {
         $salt = \str_repeat('s', 32);
         $encryptorFactory = new EncryptorFactory([
-            new AES256Encryptor($salt),
+            new Aes256Encryptor($salt),
             new FakeEncryptor(),
         ]);
 
@@ -147,17 +143,14 @@ final class PrecisionSoftDoctrineEncryptBundleTest extends TestCase
         $precisionSoftDoctrineEncryptBundle = new PrecisionSoftDoctrineEncryptBundle();
         $precisionSoftDoctrineEncryptBundle->setContainer($containerInterface);
 
-        // Should not throw -- FakeEncryptor has null typeClass and is skipped.
         $precisionSoftDoctrineEncryptBundle->boot();
 
-        // Just verifying no exception was thrown.
         static::assertSame(true, true);
     }
 
     private function removeTypeIfExists(string $typeName): void
     {
-        // Doctrine Type registry does not natively support removal,
-        // but we can use the override mechanism if the type exists.
+        /** @info Doctrine Type registry does not natively support removal, use override mechanism instead */
         if (Type::hasType($typeName)) {
             Type::overrideType($typeName, Type::getType($typeName)::class);
         }

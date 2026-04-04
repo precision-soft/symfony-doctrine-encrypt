@@ -20,11 +20,19 @@ class PrecisionSoftDoctrineEncryptBundle extends Bundle
     {
         parent::boot();
 
+        if (null === $this->container) {
+            return;
+        }
+
         $this->registerTypes();
     }
 
     private function registerTypes(): void
     {
+        if (null === $this->container) {
+            return;
+        }
+
         /** @info this is required because of how doctrine instantiates its types. */
         /** @var EncryptorFactory $encryptorFactory */
         $encryptorFactory = $this->container->get(EncryptorFactory::class);

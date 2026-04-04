@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "df4a2f6857e0bedfd3e596e9c632f102",
+    "content-hash": "dc73eb5da8d5c93ec9c6a553ed65a773",
     "packages": [
         {
             "name": "doctrine/collections",
@@ -760,16 +760,16 @@
         },
         {
             "name": "precision-soft/symfony-console",
-            "version": "v3.0.3",
+            "version": "v4.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/precision-soft/symfony-console.git",
-                "reference": "4dea81cb07fb10efa9040b6b5c85218026b2904c"
+                "reference": "14dab6b88c61edc67d7bef11dd21fc223aa5a3ac"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/precision-soft/symfony-console/zipball/4dea81cb07fb10efa9040b6b5c85218026b2904c",
-                "reference": "4dea81cb07fb10efa9040b6b5c85218026b2904c",
+                "url": "https://api.github.com/repos/precision-soft/symfony-console/zipball/14dab6b88c61edc67d7bef11dd21fc223aa5a3ac",
+                "reference": "14dab6b88c61edc67d7bef11dd21fc223aa5a3ac",
                 "shasum": ""
             },
             "require": {
@@ -783,7 +783,7 @@
             "require-dev": {
                 "friendsofphp/php-cs-fixer": "^3.0",
                 "phpstan/phpstan": "^2.0",
-                "precision-soft/symfony-phpunit": "^2.0"
+                "precision-soft/symfony-phpunit": "^3.0"
             },
             "type": "symfony-bundle",
             "autoload": {
@@ -814,9 +814,9 @@
             ],
             "support": {
                 "issues": "https://github.com/precision-soft/symfony-console/issues",
-                "source": "https://github.com/precision-soft/symfony-console/tree/v3.0.3"
+                "source": "https://github.com/precision-soft/symfony-console/tree/v4.0.0"
             },
-            "time": "2026-04-03T06:58:33+00:00"
+            "time": "2026-04-04T18:52:23+00:00"
         },
         {
             "name": "psr/cache",
@@ -3392,16 +3392,16 @@
         },
         {
             "name": "precision-soft/symfony-phpunit",
-            "version": "v2.1.3",
+            "version": "v3.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/precision-soft/symfony-phpunit.git",
-                "reference": "3513e3d42c8f55c43a7c8fe910559f13fdf68f3c"
+                "reference": "0e4d916d79b00ebbd2f529ff8a8a7da044f38fcc"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/precision-soft/symfony-phpunit/zipball/3513e3d42c8f55c43a7c8fe910559f13fdf68f3c",
-                "reference": "3513e3d42c8f55c43a7c8fe910559f13fdf68f3c",
+                "url": "https://api.github.com/repos/precision-soft/symfony-phpunit/zipball/0e4d916d79b00ebbd2f529ff8a8a7da044f38fcc",
+                "reference": "0e4d916d79b00ebbd2f529ff8a8a7da044f38fcc",
                 "shasum": ""
             },
             "require": {
@@ -3413,8 +3413,8 @@
                 "doctrine/doctrine-bundle": "^2.0",
                 "doctrine/orm": "^3.0",
                 "friendsofphp/php-cs-fixer": "^3.0",
-                "phpstan/phpstan": "^1.0",
-                "phpstan/phpstan-mockery": "^1.1",
+                "phpstan/phpstan": "^2.0",
+                "phpstan/phpstan-mockery": "^2.0",
                 "symfony/framework-bundle": "^7.0"
             },
             "suggest": {
@@ -3447,9 +3447,9 @@
             ],
             "support": {
                 "issues": "https://github.com/precision-soft/symfony-phpunit/issues",
-                "source": "https://github.com/precision-soft/symfony-phpunit/tree/v2.1.3"
+                "source": "https://github.com/precision-soft/symfony-phpunit/tree/v3.0.0"
             },
-            "time": "2026-04-03T06:49:49+00:00"
+            "time": "2026-04-04T18:26:44+00:00"
         },
         {
             "name": "react/cache",

@@ -61,34 +61,10 @@ parameters:
 			path: src/Dto/EntityMetadataDto.php
 
 		-
-			message: '#^Parameter \#1 \$length of function random_bytes expects int\<1, max\>, int\|false given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Encryptor/AES256Encryptor.php
-
-		-
-			message: '#^Parameter \#3 \$length of function substr expects int\|null, int\|false given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Encryptor/AES256FixedEncryptor.php
-
-		-
 			message: '#^Call to function is_a\(\) with arguments class\-string\<PrecisionSoft\\Doctrine\\Encrypt\\Type\\AbstractType\>, ''PrecisionSoft\\\\Doctrine\\\\Encrypt\\\\Type\\\\AbstractType'' and true will always evaluate to true\.$#'
 			identifier: function.alreadyNarrowedType
 			count: 1
 			path: src/Encryptor/AbstractEncryptor.php
-
-		-
-			message: '#^Cannot call method get\(\) on Symfony\\Component\\DependencyInjection\\ContainerInterface\|null\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/PrecisionSoftDoctrineEncryptBundle.php
-
-		-
-			message: '#^Cannot call method getParameter\(\) on Symfony\\Component\\DependencyInjection\\ContainerInterface\|null\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/PrecisionSoftDoctrineEncryptBundle.php
 
 		-
 			message: '#^Parameter \#1 \$name of static method Doctrine\\DBAL\\Types\\Type\:\:addType\(\) expects string, string\|null given\.$#'

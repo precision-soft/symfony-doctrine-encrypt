@@ -22,13 +22,13 @@
         "doctrine/dbal": "4.*",
         "doctrine/orm": "3.*",
         "doctrine/persistence": "3.*",
-        "precision-soft/symfony-console": "3.*",
+        "precision-soft/symfony-console": "^4.0",
         "symfony/config": "7.*"
     },
     "require-dev": {
         "friendsofphp/php-cs-fixer": "3.*",
         "phpstan/phpstan": "^2.0",
-        "precision-soft/symfony-phpunit": "2.*"
+        "precision-soft/symfony-phpunit": "^3.0"
     },
     "autoload": {
         "psr-4": {
@@ -42,7 +42,7 @@
     },
     "scripts": {
         "install-hooks": [
-            "[ $COMPOSER_DEV_MODE -eq 1 ] && rm -rf .git/hooks && ln -s ../.dev/git-hooks .git/hooks || exit 0"
+            "[ \"$COMPOSER_DEV_MODE\" -eq 1 ] && rm -rf .git/hooks && ln -s ../.dev/git-hooks .git/hooks || exit 0"
         ],
         "post-install-cmd": [
             "@install-hooks"

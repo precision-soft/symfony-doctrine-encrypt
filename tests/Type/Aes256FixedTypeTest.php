@@ -13,30 +13,30 @@ use Doctrine\DBAL\Types\Type;
 use Mockery;
 use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
 use PHPUnit\Framework\TestCase;
-use PrecisionSoft\Doctrine\Encrypt\Encryptor\AES256FixedEncryptor;
+use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256FixedEncryptor;
 use PrecisionSoft\Doctrine\Encrypt\Exception\Exception;
-use PrecisionSoft\Doctrine\Encrypt\Type\AES256FixedType;
+use PrecisionSoft\Doctrine\Encrypt\Type\Aes256FixedType;
 
 /**
  * @internal
  */
-final class AES256FixedTypeTest extends TestCase
+final class Aes256FixedTypeTest extends TestCase
 {
     use MockeryPHPUnitIntegration;
 
-    private AES256FixedType $aes256FixedType;
-    private AES256FixedEncryptor $aes256FixedEncryptor;
+    private Aes256FixedType $aes256FixedType;
+    private Aes256FixedEncryptor $aes256FixedEncryptor;
 
     protected function setUp(): void
     {
-        if (false === Type::hasType(AES256FixedType::getFullName())) {
-            Type::addType(AES256FixedType::getFullName(), AES256FixedType::class);
+        if (false === Type::hasType(Aes256FixedType::getFullName())) {
+            Type::addType(Aes256FixedType::getFullName(), Aes256FixedType::class);
         }
 
-        /** @var AES256FixedType $aes256FixedType */
-        $aes256FixedType = Type::getType(AES256FixedType::getFullName());
+        /** @var Aes256FixedType $aes256FixedType */
+        $aes256FixedType = Type::getType(Aes256FixedType::getFullName());
         $this->aes256FixedType = $aes256FixedType;
-        $this->aes256FixedEncryptor = new AES256FixedEncryptor(\str_repeat('c', 32));
+        $this->aes256FixedEncryptor = new Aes256FixedEncryptor(\str_repeat('c', 32));
         $this->aes256FixedType->setEncryptor($this->aes256FixedEncryptor);
     }
 
@@ -80,12 +80,12 @@ final class AES256FixedTypeTest extends TestCase
 
     public function testConvertWithoutEncryptorThrowsException(): void
     {
-        if (false === Type::hasType('encryptedAES256fixed_test')) {
-            Type::addType('encryptedAES256fixed_test', AES256FixedType::class);
+        if (false === Type::hasType('encryptedAes256fixed_test')) {
+            Type::addType('encryptedAes256fixed_test', Aes256FixedType::class);
         }
 
-        /** @var AES256FixedType $bareType */
-        $bareType = Type::getType('encryptedAES256fixed_test');
+        /** @var Aes256FixedType $bareType */
+        $bareType = Type::getType('encryptedAes256fixed_test');
 
         /** @var AbstractPlatform $platform */
         $platform = Mockery::mock(AbstractPlatform::class);
