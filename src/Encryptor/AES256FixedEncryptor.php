@@ -19,20 +19,9 @@ class AES256FixedEncryptor extends AbstractEncryptor
 
     protected function generateNonce(string $data): string
     {
-        $dataSize = \strlen($data);
-
-        if (0 === $dataSize) {
-            $dataSize = 10;
-            $data = \str_repeat('0', $dataSize);
-        }
-
         $size = \openssl_cipher_iv_length(static::ALGORITHM);
-        $nonce = '';
+        $hash = \hash_hmac('sha256', $data, $this->salt, true);
 
-        for ($position = 1; $position <= $size; ++$position) {
-            $nonce .= $data[($position - 1) % $dataSize];
-        }
-
-        return $nonce;
+        return \substr($hash, 0, $size);
     }
 }

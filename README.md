@@ -8,7 +8,7 @@ Symfony bundle for transparent AES-256 field-level encryption of Doctrine ORM en
 
 - PHP 8.2+ with `ext-openssl`
 - Doctrine ORM 3.*
-- Doctrine DBAL 3.* or 4.*
+- Doctrine DBAL 4.*
 - Symfony 7.*
 
 ## Installation
@@ -21,7 +21,6 @@ Register the bundle in `config/bundles.php`:
 
 ```php
 return [
-    /* ... */
     PrecisionSoft\Doctrine\Encrypt\PrecisionSoftDoctrineEncryptBundle::class => ['all' => true],
 ];
 ```
@@ -54,9 +53,9 @@ APP_ENCRYPTION_SALT=your-random-salt-of-at-least-32-characters
 
 ## Encryption types
 
-| Type | Doctrine type name | Use case |
-|---|---|---|
-| `AES256Type` | `encryptedAES256` | General encryption — different ciphertext each time (non-deterministic) |
+| Type              | Doctrine type name     | Use case                                                                                                |
+|-------------------|------------------------|---------------------------------------------------------------------------------------------------------|
+| `AES256Type`      | `encryptedAES256`      | General encryption — different ciphertext each time (non-deterministic)                                 |
 | `AES256FixedType` | `encryptedAES256fixed` | Deterministic encryption — same plaintext always produces the same ciphertext, enabling `WHERE` queries |
 
 ## Usage
@@ -64,16 +63,18 @@ APP_ENCRYPTION_SALT=your-random-salt-of-at-least-32-characters
 ### Entity mapping
 
 ```php
+<?php
+
+declare(strict_types=1);
+
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
 class Customer
 {
-    /* non-deterministic — secure for data at rest, cannot be queried with where */
     #[ORM\Column(type: 'encryptedAES256')]
     private string $name;
 
-    /* deterministic — same input always produces the same ciphertext, enabling where queries */
     #[ORM\Column(type: 'encryptedAES256fixed')]
     private string $email;
 }
@@ -86,41 +87,47 @@ The entity always holds the plaintext value. Encryption and decryption happen tr
 `encryptedAES256fixed` fields can be searched with a WHERE clause. Use `EntityService::setEncryptedParameter()` to encrypt the search value before binding it:
 
 ```php
+<?php
+
+declare(strict_types=1);
+
+use Doctrine\Persistence\ManagerRegistry;
+use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use PrecisionSoft\Doctrine\Encrypt\Service\EntityService;
 
 class CustomerRepository extends ServiceEntityRepository
 {
     public function __construct(
-        ManagerRegistry $registry,
+        ManagerRegistry $managerRegistry,
         private readonly EntityService $entityService,
     ) {
-        parent::__construct($registry, Customer::class);
+        parent::__construct($managerRegistry, Customer::class);
     }
 
     public function findByEmail(string $email): ?Customer
     {
-        $qb = $this->createQueryBuilder('c')
+        $queryBuilder = $this->createQueryBuilder('c')
             ->where('c.email = :email');
 
-        $this->entityService->setEncryptedParameter($qb, 'email', Customer::class, 'email', $email);
+        $this->entityService->setEncryptedParameter($queryBuilder, 'email', Customer::class, 'email', $email);
 
-        return $qb->getQuery()->getOneOrNullResult();
+        return $queryBuilder->getQuery()->getOneOrNullResult();
     }
 }
 ```
 
 ### EntityService API
 
-| Method | Description |
-|---|---|
-| `getEncryptor(class, field)` | Returns the encryptor configured for the field |
-| `hasEncryptor(class, field)` | Returns `true` if the field uses an encrypted type |
-| `isEncrypted(entity\|class, field)` | Same as `hasEncryptor`, accepts object or class string |
-| `encrypt(data, class, field)` | Encrypts a value using the field's encryptor |
-| `decrypt(data, class, field)` | Decrypts a value using the field's encryptor |
-| `setEncryptedParameter(qb, param, class, field, value)` | Encrypts a value and sets it as a query parameter |
-| `isValueEncrypted(entity, field)` | Reads the raw DB column and checks if it is currently encrypted (additional DBAL query) |
-| `getEntitiesWithEncryption(manager?)` | Returns all entity classes that have at least one encrypted field |
+| Method                                                  | Description                                                                             |
+|---------------------------------------------------------|-----------------------------------------------------------------------------------------|
+| `getEncryptor(class, field)`                            | Returns the encryptor configured for the field                                          |
+| `hasEncryptor(class, field)`                            | Returns `true` if the field uses an encrypted type                                      |
+| `isEncrypted(entity\|class, field)`                     | Same as `hasEncryptor`, accepts object or class string                                  |
+| `encrypt(data, class, field)`                           | Encrypts a value using the field's encryptor                                            |
+| `decrypt(data, class, field)`                           | Decrypts a value using the field's encryptor                                            |
+| `setEncryptedParameter(qb, param, class, field, value)` | Encrypts a value and sets it as a query parameter                                       |
+| `isValueEncrypted(entity, field)`                       | Reads the raw DB column and checks if it is currently encrypted (additional DBAL query) |
+| `getEntitiesWithEncryption(manager?)`                   | Returns all entity classes that have at least one encrypted field                       |
 
 ## Commands
 
@@ -150,12 +157,72 @@ php bin/console precision-soft:doctrine:database:encrypt --manager=secondary
 - **Non-deterministic vs deterministic**: `AES256Type` uses a random nonce per encryption, so the same plaintext produces different ciphertext on each call — this is the secure default. `AES256FixedType` uses a deterministic nonce derived from the plaintext, enabling `WHERE` queries but leaking the fact that two rows have the same value.
 - **MAC verification**: Every encrypted value includes an HMAC-SHA256 tag. Tampered or corrupted values are rejected on decryption.
 - **Plaintext serialisation**: Values are PHP-serialised before encryption. On decryption, only scalar strings are accepted (`allowed_classes: false`), preventing object injection.
+- **Double-encryption protection**: The `encrypt()` method detects the encryption marker and returns already-encrypted data unchanged. This prevents accidental double-encryption when processing raw values that are already encrypted.
+- **Key derivation**: The raw salt is never used directly. Separate encryption and MAC keys are derived via HKDF (or a SHA-256 fallback), so compromising one key does not expose the other.
+
+## Key rotation limitations
+
+This bundle does **not** support transparent key rotation. All encrypted values are tied to the single configured salt. To rotate the encryption key you must:
+
+1. Decrypt the entire database with the current salt using `precision-soft:doctrine:database:decrypt`.
+2. Change the `salt` configuration to the new value.
+3. Re-encrypt the entire database using `precision-soft:doctrine:database:encrypt`.
+
+During the rotation window the database contains plaintext data — plan for a maintenance window and restrict access accordingly.
+
+For applications that require online key rotation (encrypting new data with a new key while still decrypting old data with the previous key), consider implementing a versioned encryption layer on top of the bundle's `EncryptorInterface`. The PynBooking project demonstrates this pattern with a version-tagged prefix and a map of secrets keyed by version.
+
+## Format versioning
+
+The encrypted output format is:
+
+```
+<ENC>\0<base64-ciphertext>\0<base64-mac>\0<base64-nonce>
+```
+
+`<ENC>` is a fixed marker (`AbstractEncryptor::ENCRYPTION_MARKER`). The separator is a null byte (`\0`). There is currently no version identifier embedded in the format. If the encryption scheme changes in a future release, a migration path will be provided. Existing data remains readable as long as the salt is unchanged.
+
+## Custom encryptors
+
+You can replace the built-in encryptor for any Doctrine type by implementing `EncryptorInterface` and registering it as a tagged service. This allows you to introduce custom encryption logic (such as versioned secrets or external KMS integration) without modifying the bundle.
+
+```php
+<?php
+
+declare(strict_types=1);
+
+use PrecisionSoft\Doctrine\Encrypt\Contract\EncryptorInterface;
+use PrecisionSoft\Doctrine\Encrypt\Type\AES256Type;
+
+class MyCustomEncryptor implements EncryptorInterface
+{
+    public function getTypeClass(): string
+    {
+        return AES256Type::class;
+    }
+
+    public function getTypeName(): ?string
+    {
+        return AES256Type::getFullName();
+    }
+
+    public function encrypt(string $data): string
+    {
+    }
+
+    public function decrypt(string $data): string
+    {
+    }
+}
+```
+
+When using the `encryptors` configuration key, list only your custom encryptor class to ensure it takes precedence over the built-in one. The bundle rejects duplicate encryptors for the same Doctrine type, so only one encryptor per type can be active.
 
 ## Dev
 
 ```shell
 git clone git@github.com:precision-soft/symfony-doctrine-encrypt.git
-cd doctrine-encrypt
+cd symfony-doctrine-encrypt
 composer install
 vendor/bin/phpunit
 ```

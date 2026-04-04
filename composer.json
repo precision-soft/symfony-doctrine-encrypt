@@ -1,7 +1,6 @@
 {
     "name": "precision-soft/symfony-doctrine-encrypt",
     "type": "symfony-bundle",
-    "version": "v2.2.4",
     "description": "doctrine encrypt type",
     "keywords": [
         "symfony",
@@ -20,16 +19,16 @@
     "require": {
         "php": ">=8.2",
         "ext-openssl": "*",
-        "doctrine/dbal": "3.*||4.*",
+        "doctrine/dbal": "4.*",
         "doctrine/orm": "3.*",
         "doctrine/persistence": "3.*",
-        "precision-soft/symfony-console": "1.*||2.*",
+        "precision-soft/symfony-console": "3.*",
         "symfony/config": "7.*"
     },
     "require-dev": {
-        "precision-soft/symfony-phpunit": "1.*",
         "friendsofphp/php-cs-fixer": "3.*",
-        "squizlabs/php_codesniffer": "3.*"
+        "phpstan/phpstan": "^2.0",
+        "precision-soft/symfony-phpunit": "2.*"
     },
     "autoload": {
         "psr-4": {

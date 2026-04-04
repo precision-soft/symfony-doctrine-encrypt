@@ -21,6 +21,10 @@ abstract class AbstractEncryptor implements EncryptorInterface
     protected const MINIMUM_KEY_LENGTH = 32;
     protected const GLUE = "\0";
 
+    private readonly string $encryptionKey;
+
+    private readonly string $macKey;
+
     abstract public function getTypeClass(): ?string;
 
     abstract protected function generateNonce(string $data): string;
@@ -29,9 +33,17 @@ abstract class AbstractEncryptor implements EncryptorInterface
         #[\SensitiveParameter]
         protected readonly string $salt,
     ) {
-        if (\mb_strlen($salt) < static::MINIMUM_KEY_LENGTH) {
+        if (\strlen($salt) < static::MINIMUM_KEY_LENGTH) {
             throw new Exception('invalid encryption salt');
         }
+
+        $this->encryptionKey = self::deriveKey($salt, 'encryption');
+        $this->macKey = self::deriveKey($salt, 'authentication');
+    }
+
+    private static function deriveKey(string $salt, string $info): string
+    {
+        return \hash_hkdf('sha256', $salt, 32, $info);
     }
 
     final public function getTypeName(): ?string
@@ -52,13 +64,16 @@ abstract class AbstractEncryptor implements EncryptorInterface
 
     public function encrypt(string $data): string
     {
+        if (true === \str_starts_with($data, self::ENCRYPTION_MARKER . static::GLUE)) {
+            return $data;
+        }
+
         $nonce = $this->generateNonce($data);
-        $plaintext = \serialize($data);
 
         $ciphertext = \openssl_encrypt(
-            $plaintext,
+            $data,
             static::ALGORITHM,
-            $this->salt,
+            $this->encryptionKey,
             \OPENSSL_RAW_DATA,
             $nonce,
         );
@@ -67,7 +82,7 @@ abstract class AbstractEncryptor implements EncryptorInterface
             throw new Exception('could not encrypt plaintext');
         }
 
-        $mac = \hash(static::HASH_ALGORITHM, static::ALGORITHM . $ciphertext . $this->salt . $nonce, true);
+        $mac = \hash_hmac(static::HASH_ALGORITHM, static::ALGORITHM . $ciphertext . $nonce, $this->macKey, true);
 
         return \implode(
             static::GLUE,
@@ -106,7 +121,7 @@ abstract class AbstractEncryptor implements EncryptorInterface
             throw new Exception('could not validate nonce');
         }
 
-        $expected = \hash(static::HASH_ALGORITHM, static::ALGORITHM . $ciphertext . $this->salt . $nonce, true);
+        $expected = \hash_hmac(static::HASH_ALGORITHM, static::ALGORITHM . $ciphertext . $nonce, $this->macKey, true);
 
         if (false === \hash_equals($expected, $mac)) {
             throw new Exception('invalid mac');
@@ -115,7 +130,7 @@ abstract class AbstractEncryptor implements EncryptorInterface
         $plaintext = \openssl_decrypt(
             $ciphertext,
             static::ALGORITHM,
-            $this->salt,
+            $this->encryptionKey,
             \OPENSSL_RAW_DATA,
             $nonce,
         );
@@ -124,17 +139,6 @@ abstract class AbstractEncryptor implements EncryptorInterface
             throw new Exception('could not decrypt ciphertext');
         }
 
-        $decryptedData = \unserialize(
-            $plaintext,
-            [
-                'allowed_classes' => false,
-            ],
-        );
-
-        if (false === \is_string($decryptedData)) {
-            throw new Exception('could not validate plaintext');
-        }
-
-        return $decryptedData;
+        return $plaintext;
     }
 }

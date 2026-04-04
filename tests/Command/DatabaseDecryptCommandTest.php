@@ -10,8 +10,10 @@ namespace PrecisionSoft\Doctrine\Encrypt\Test\Command;
 
 use Doctrine\Persistence\ManagerRegistry;
 use Mockery;
+use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
 use PHPUnit\Framework\TestCase;
 use PrecisionSoft\Doctrine\Encrypt\Command\DatabaseDecryptCommand;
+use PrecisionSoft\Doctrine\Encrypt\Exception\Exception;
 use PrecisionSoft\Doctrine\Encrypt\Service\EncryptorFactory;
 use PrecisionSoft\Doctrine\Encrypt\Service\EntityService;
 use Symfony\Component\Console\Application;
@@ -23,6 +25,8 @@ use Symfony\Component\Console\Tester\CommandTester;
  */
 final class DatabaseDecryptCommandTest extends TestCase
 {
+    use MockeryPHPUnitIntegration;
+
     public function testCommandName(): void
     {
         static::assertSame(DatabaseDecryptCommand::NAME, 'precision-soft:doctrine:database:decrypt');
@@ -30,20 +34,20 @@ final class DatabaseDecryptCommandTest extends TestCase
 
     public function testExecuteWithNoEntitiesReturnsSuccess(): void
     {
-        $registry = Mockery::mock(ManagerRegistry::class);
-        $factory = Mockery::mock(EncryptorFactory::class);
+        $managerRegistry = Mockery::mock(ManagerRegistry::class);
+        $encryptorFactory = Mockery::mock(EncryptorFactory::class);
         $entityService = Mockery::mock(EntityService::class);
 
         $entityService->shouldReceive('getEntitiesWithEncryption')
             ->once()
             ->andReturn([]);
 
-        $command = new DatabaseDecryptCommand($registry, $factory, $entityService);
+        $databaseDecryptCommand = new DatabaseDecryptCommand($managerRegistry, $encryptorFactory, $entityService);
 
         $application = new Application();
-        $application->addCommand($command);
+        $application->addCommand($databaseDecryptCommand);
 
-        $commandTester = new CommandTester($command);
+        $commandTester = new CommandTester($databaseDecryptCommand);
         $commandTester->execute([], ['interactive' => false]);
 
         static::assertSame(Command::SUCCESS, $commandTester->getStatusCode());
@@ -51,20 +55,20 @@ final class DatabaseDecryptCommandTest extends TestCase
 
     public function testExecuteWithExceptionReturnsFailure(): void
     {
-        $registry = Mockery::mock(ManagerRegistry::class);
-        $factory = Mockery::mock(EncryptorFactory::class);
+        $managerRegistry = Mockery::mock(ManagerRegistry::class);
+        $encryptorFactory = Mockery::mock(EncryptorFactory::class);
         $entityService = Mockery::mock(EntityService::class);
 
         $entityService->shouldReceive('getEntitiesWithEncryption')
             ->once()
-            ->andThrow(new \RuntimeException('database error'));
+            ->andThrow(new Exception('database error'));
 
-        $command = new DatabaseDecryptCommand($registry, $factory, $entityService);
+        $databaseDecryptCommand = new DatabaseDecryptCommand($managerRegistry, $encryptorFactory, $entityService);
 
         $application = new Application();
-        $application->addCommand($command);
+        $application->addCommand($databaseDecryptCommand);
 
-        $commandTester = new CommandTester($command);
+        $commandTester = new CommandTester($databaseDecryptCommand);
         $commandTester->execute([], ['interactive' => false]);
 
         static::assertSame(Command::FAILURE, $commandTester->getStatusCode());

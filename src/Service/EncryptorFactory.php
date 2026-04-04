@@ -10,6 +10,7 @@ namespace PrecisionSoft\Doctrine\Encrypt\Service;
 
 use Doctrine\DBAL\Types\Type;
 use PrecisionSoft\Doctrine\Encrypt\Contract\EncryptorInterface;
+use PrecisionSoft\Doctrine\Encrypt\Encryptor\FakeEncryptor;
 use PrecisionSoft\Doctrine\Encrypt\Exception\DuplicateEncryptorException;
 use PrecisionSoft\Doctrine\Encrypt\Exception\EncryptorNotFoundException;
 use PrecisionSoft\Doctrine\Encrypt\Exception\Exception;
@@ -36,7 +37,7 @@ class EncryptorFactory
         $this->typeNames = [];
 
         foreach ($encryptors as $encryptor) {
-            if ([] !== $enabledEncryptors && false === \in_array($encryptor::class, $enabledEncryptors, true)) {
+            if ([] !== $enabledEncryptors && false === ($encryptor instanceof FakeEncryptor) && false === \in_array($encryptor::class, $enabledEncryptors, true)) {
                 continue;
             }
 
@@ -105,14 +106,14 @@ class EncryptorFactory
             throw new TypeNotFoundException(\sprintf('no type found for `%s`', $typeName));
         }
 
-        $type = Type::getType($typeName);
+        $dbalType = Type::getType($typeName);
 
-        if (false === ($type instanceof AbstractType)) {
+        if (false === ($dbalType instanceof AbstractType)) {
             throw new Exception(
                 \sprintf('the encrypted type must extend `%s`', AbstractType::class),
             );
         }
 
-        return $type;
+        return $dbalType;
     }
 }

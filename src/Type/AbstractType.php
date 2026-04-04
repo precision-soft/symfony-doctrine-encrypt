@@ -38,11 +38,6 @@ abstract class AbstractType extends StringType
         return $this;
     }
 
-    final public function getName(): string
-    {
-        return static::getFullName();
-    }
-
     final public function convertToDatabaseValue($value, AbstractPlatform $platform): ?string
     {
         $this->validate();

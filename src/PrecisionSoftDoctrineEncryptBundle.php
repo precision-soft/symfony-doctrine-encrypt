@@ -25,11 +25,8 @@ class PrecisionSoftDoctrineEncryptBundle extends Bundle
 
     private function registerTypes(): void
     {
-        /**
-         * @important this is required because of how doctrine instantiates its types.
-         *
-         * @var EncryptorFactory $encryptorFactory
-         */
+        /** @info this is required because of how doctrine instantiates its types. */
+        /** @var EncryptorFactory $encryptorFactory */
         $encryptorFactory = $this->container->get(EncryptorFactory::class);
 
         /** @var string[] $enabledTypes */

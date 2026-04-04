@@ -8,4 +8,6 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Encrypt\Exception;
 
-class Exception extends \Exception {}
+use Exception as BaseException;
+
+class Exception extends BaseException {}

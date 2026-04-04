@@ -11,6 +11,7 @@ namespace PrecisionSoft\Doctrine\Encrypt\Test\Type;
 use Doctrine\DBAL\Platforms\AbstractPlatform;
 use Doctrine\DBAL\Types\Type;
 use Mockery;
+use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
 use PHPUnit\Framework\TestCase;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\AES256Encryptor;
 use PrecisionSoft\Doctrine\Encrypt\Exception\Exception;
@@ -21,8 +22,10 @@ use PrecisionSoft\Doctrine\Encrypt\Type\AES256Type;
  */
 final class AES256TypeTest extends TestCase
 {
-    private AES256Type $type;
-    private AES256Encryptor $encryptor;
+    use MockeryPHPUnitIntegration;
+
+    private AES256Type $aes256Type;
+    private AES256Encryptor $aes256Encryptor;
 
     protected function setUp(): void
     {
@@ -30,11 +33,11 @@ final class AES256TypeTest extends TestCase
             Type::addType(AES256Type::getFullName(), AES256Type::class);
         }
 
-        /** @var AES256Type $type */
-        $type = Type::getType(AES256Type::getFullName());
-        $this->type = $type;
-        $this->encryptor = new AES256Encryptor(\str_repeat('c', 32));
-        $this->type->setEncryptor($this->encryptor);
+        /** @var AES256Type $aes256Type */
+        $aes256Type = Type::getType(AES256Type::getFullName());
+        $this->aes256Type = $aes256Type;
+        $this->aes256Encryptor = new AES256Encryptor(\str_repeat('c', 32));
+        $this->aes256Type->setEncryptor($this->aes256Encryptor);
     }
 
     public function testConvertToDatabaseValueEncryptsValue(): void
@@ -42,7 +45,7 @@ final class AES256TypeTest extends TestCase
         /** @var AbstractPlatform $platform */
         $platform = Mockery::mock(AbstractPlatform::class);
 
-        $result = $this->type->convertToDatabaseValue('plaintext', $platform);
+        $result = $this->aes256Type->convertToDatabaseValue('plaintext', $platform);
 
         static::assertNotSame('plaintext', $result);
         static::assertStringStartsWith('<ENC>', (string)$result);
@@ -53,8 +56,8 @@ final class AES256TypeTest extends TestCase
         /** @var AbstractPlatform $platform */
         $platform = Mockery::mock(AbstractPlatform::class);
 
-        $encrypted = $this->encryptor->encrypt('plaintext');
-        $result = $this->type->convertToPHPValue($encrypted, $platform);
+        $encrypted = $this->aes256Encryptor->encrypt('plaintext');
+        $result = $this->aes256Type->convertToPHPValue($encrypted, $platform);
 
         static::assertSame('plaintext', $result);
     }
@@ -64,7 +67,7 @@ final class AES256TypeTest extends TestCase
         /** @var AbstractPlatform $platform */
         $platform = Mockery::mock(AbstractPlatform::class);
 
-        static::assertNull($this->type->convertToDatabaseValue(null, $platform));
+        static::assertSame(null, $this->aes256Type->convertToDatabaseValue(null, $platform));
     }
 
     public function testConvertToPHPValueNullReturnsNull(): void
@@ -72,7 +75,7 @@ final class AES256TypeTest extends TestCase
         /** @var AbstractPlatform $platform */
         $platform = Mockery::mock(AbstractPlatform::class);
 
-        static::assertNull($this->type->convertToPHPValue(null, $platform));
+        static::assertSame(null, $this->aes256Type->convertToPHPValue(null, $platform));
     }
 
     public function testConvertWithoutEncryptorThrowsException(): void
@@ -93,18 +96,13 @@ final class AES256TypeTest extends TestCase
         $bareType->convertToDatabaseValue('value', $platform);
     }
 
-    public function testGetNameReturnsFullName(): void
-    {
-        static::assertSame(AES256Type::getFullName(), $this->type->getName());
-    }
-
     public function testRoundTripThroughType(): void
     {
         /** @var AbstractPlatform $platform */
         $platform = Mockery::mock(AbstractPlatform::class);
 
-        $encrypted = $this->type->convertToDatabaseValue('original', $platform);
-        $decrypted = $this->type->convertToPHPValue($encrypted, $platform);
+        $encrypted = $this->aes256Type->convertToDatabaseValue('original', $platform);
+        $decrypted = $this->aes256Type->convertToPHPValue($encrypted, $platform);
 
         static::assertSame('original', $decrypted);
     }

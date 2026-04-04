@@ -9,8 +9,8 @@ declare(strict_types=1);
 namespace PrecisionSoft\Doctrine\Encrypt\Test\Encryptor;
 
 use PHPUnit\Framework\TestCase;
-use PrecisionSoft\Doctrine\Encrypt\Encryptor\AES256Encryptor;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\AbstractEncryptor;
+use PrecisionSoft\Doctrine\Encrypt\Encryptor\AES256Encryptor;
 use PrecisionSoft\Doctrine\Encrypt\Exception\Exception;
 use PrecisionSoft\Doctrine\Encrypt\Type\AES256Type;
 
@@ -20,27 +20,27 @@ use PrecisionSoft\Doctrine\Encrypt\Type\AES256Type;
 final class AES256EncryptorTest extends TestCase
 {
     private string $salt;
-    private AES256Encryptor $encryptor;
+    private AES256Encryptor $aes256Encryptor;
 
     protected function setUp(): void
     {
         $this->salt = \str_repeat('a', 32);
-        $this->encryptor = new AES256Encryptor($this->salt);
+        $this->aes256Encryptor = new AES256Encryptor($this->salt);
     }
 
     public function testEncryptDecryptRoundTrip(): void
     {
         $plaintext = 'my-secret-password';
 
-        $encrypted = $this->encryptor->encrypt($plaintext);
-        $decrypted = $this->encryptor->decrypt($encrypted);
+        $encrypted = $this->aes256Encryptor->encrypt($plaintext);
+        $decrypted = $this->aes256Encryptor->decrypt($encrypted);
 
         static::assertSame($plaintext, $decrypted);
     }
 
     public function testEncryptProducesMarker(): void
     {
-        $encrypted = $this->encryptor->encrypt('value');
+        $encrypted = $this->aes256Encryptor->encrypt('value');
 
         static::assertStringStartsWith(AbstractEncryptor::ENCRYPTION_MARKER, $encrypted);
     }
@@ -49,8 +49,8 @@ final class AES256EncryptorTest extends TestCase
     {
         $plaintext = 'same-value';
 
-        $first = $this->encryptor->encrypt($plaintext);
-        $second = $this->encryptor->encrypt($plaintext);
+        $first = $this->aes256Encryptor->encrypt($plaintext);
+        $second = $this->aes256Encryptor->encrypt($plaintext);
 
         static::assertNotSame($first, $second);
     }
@@ -59,14 +59,13 @@ final class AES256EncryptorTest extends TestCase
     {
         $plaintext = 'not-encrypted';
 
-        static::assertSame($plaintext, $this->encryptor->decrypt($plaintext));
+        static::assertSame($plaintext, $this->aes256Encryptor->decrypt($plaintext));
     }
 
     public function testDecryptInvalidMacThrowsException(): void
     {
-        $encrypted = $this->encryptor->encrypt('value');
+        $encrypted = $this->aes256Encryptor->encrypt('value');
 
-        /* tamper with the mac portion */
         $parts = \explode("\0", $encrypted);
         $parts[2] = \base64_encode(\str_repeat('x', 32));
         $tampered = \implode("\0", $parts);
@@ -74,7 +73,7 @@ final class AES256EncryptorTest extends TestCase
         $this->expectException(Exception::class);
         $this->expectExceptionMessage('invalid mac');
 
-        $this->encryptor->decrypt($tampered);
+        $this->aes256Encryptor->decrypt($tampered);
     }
 
     public function testSaltTooShortThrowsException(): void
@@ -87,11 +86,11 @@ final class AES256EncryptorTest extends TestCase
 
     public function testGetTypeClassReturnsAES256Type(): void
     {
-        static::assertSame(AES256Type::class, $this->encryptor->getTypeClass());
+        static::assertSame(AES256Type::class, $this->aes256Encryptor->getTypeClass());
     }
 
     public function testGetTypeNameReturnsFullName(): void
     {
-        static::assertSame(AES256Type::getFullName(), $this->encryptor->getTypeName());
+        static::assertSame(AES256Type::getFullName(), $this->aes256Encryptor->getTypeName());
     }
 }

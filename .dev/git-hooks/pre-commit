@@ -42,19 +42,6 @@ lint() {
     print_command "end php lint"
 }
 
-code_sniffer() {
-    print_command "start code sniffer"
-    println ""
-
-    run_in_container_dev ./vendor/bin/phpcs --no-cache --encoding=utf-8 -n -p -v -s $1
-
-    if [[ $? != 0 ]]; then
-        print_error "fix the errors before commit"
-    fi
-
-    print_command "end code sniffer"
-}
-
 php_unit() {
     print_command "start php unit"
     println ""
@@ -63,9 +50,24 @@ php_unit() {
 
     if [[ $? != 0 ]]; then
         print_error "fix the errors before commit"
+        stop 1
     fi
 
     print_command "end php unit"
+}
+
+phpstan() {
+    print_command "start phpstan"
+    println ""
+
+    run_in_container_dev php -d memory_limit=-1 ./vendor/bin/phpstan analyse --no-progress
+
+    if [[ $? != 0 ]]; then
+        print_error "fix the errors before commit"
+        stop 1
+    fi
+
+    print_command "end phpstan"
 }
 
 php_cs_fixer() {
@@ -75,7 +77,7 @@ php_cs_fixer() {
     local files=()
     while IFS= read -r f; do
         [[ -n "$f" ]] && files+=("$f")
-    done <<< "${STAGED_FILES_PHP}"
+    done <<< "$1"
 
     run_in_container_dev ./vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.dist.php "${files[@]}"
 
@@ -96,14 +98,14 @@ php_cs_fixer() {
 
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-STAGED_FILES=$(git diff --cached --name-only)
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR)
 
 print_command "${PWD} start pre commit hook"
 
 if [[ "${STAGED_FILES}" = "" ]]; then
     println "no files to commit"
 
-    stop 1
+    stop 0
 fi
 
 println ""
@@ -124,7 +126,11 @@ if [[ "${STAGED_FILES_PHP}" != "" ]]; then
 
     println ""
 
-    php_unit "${STAGED_FILES}"
+    phpstan
+
+    println ""
+
+    php_unit
 fi
 
 println ""
@@ -135,4 +141,4 @@ print_command "staged files after hooks end"
 
 println ""
 
-stop $?
+stop 0

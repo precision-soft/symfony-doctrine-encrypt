@@ -58,11 +58,6 @@ class DatabaseEncryptCommand extends AbstractDatabaseCommand
 
         $this->style->section('[ENCRYPT] ' . $className);
 
-        $fields = \array_merge(
-            $entityMetadataDto->getClassMetadata()->getIdentifier(),
-            \array_keys($entityMetadataDto->getEncryptionFields()),
-        );
-
         $entityManager = $this->getManager();
         /** @var UnitOfWork $unitOfWork */
         $unitOfWork = $entityManager->getUnitOfWork();
@@ -80,7 +75,7 @@ class DatabaseEncryptCommand extends AbstractDatabaseCommand
 
         do {
             $entities = $repository->createQueryBuilder('e')
-                ->select('PARTIAL e.{' . \implode(', ', $fields) . '}')
+                ->select('e')
                 ->setMaxResults(50)
                 ->setFirstResult($offset)
                 ->getQuery()

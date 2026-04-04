@@ -19,14 +19,14 @@ class PrecisionSoftDoctrineEncryptExtension extends Extension
 
     public function load(array $configs, ContainerBuilder $containerBuilder): void
     {
-        $loader = new PhpFileLoader($containerBuilder, new FileLocator(__DIR__ . '/../Resources/config'));
-        $loader->load('services.php');
+        $phpFileLoader = new PhpFileLoader($containerBuilder, new FileLocator(__DIR__ . '/../Resources/config'));
+        $phpFileLoader->load('services.php');
 
         $configuration = new Configuration();
-        $config = $this->processConfiguration($configuration, $configs);
+        $processedConfig = $this->processConfiguration($configuration, $configs);
 
-        $containerBuilder->setParameter('precision_soft_doctrine_encrypt.salt', $config['salt']);
-        $containerBuilder->setParameter('precision_soft_doctrine_encrypt.enabled_types', $config['enabled_types']);
-        $containerBuilder->setParameter('precision_soft_doctrine_encrypt.encryptors', $config['encryptors']);
+        $containerBuilder->setParameter('precision_soft_doctrine_encrypt.salt', $processedConfig['salt']);
+        $containerBuilder->setParameter('precision_soft_doctrine_encrypt.enabled_types', $processedConfig['enabled_types']);
+        $containerBuilder->setParameter('precision_soft_doctrine_encrypt.encryptors', $processedConfig['encryptors']);
     }
 }

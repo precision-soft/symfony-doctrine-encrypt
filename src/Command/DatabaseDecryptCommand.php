@@ -60,11 +60,6 @@ class DatabaseDecryptCommand extends AbstractDatabaseCommand
 
         $this->style->section('[DECRYPT] ' . $className);
 
-        $fields = \array_merge(
-            $entityMetadataDto->getClassMetadata()->getIdentifier(),
-            \array_keys($entityMetadataDto->getEncryptionFields()),
-        );
-
         $entityManager = $this->getManager();
         /** @var UnitOfWork $unitOfWork */
         $unitOfWork = $entityManager->getUnitOfWork();
@@ -82,7 +77,7 @@ class DatabaseDecryptCommand extends AbstractDatabaseCommand
 
         do {
             $entities = $repository->createQueryBuilder('e')
-                ->select('PARTIAL e.{' . \implode(', ', $fields) . '}')
+                ->select('e')
                 ->setMaxResults(50)
                 ->setFirstResult($offset)
                 ->getQuery()
@@ -123,10 +118,10 @@ class DatabaseDecryptCommand extends AbstractDatabaseCommand
                 continue;
             }
 
-            $type = $this->encryptorFactory->getType($typeName);
-            $resetEncryptors[$typeName] = $type->getEncryptor();
+            $abstractType = $this->encryptorFactory->getType($typeName);
+            $resetEncryptors[$typeName] = $abstractType->getEncryptor();
 
-            $type->setEncryptor(
+            $abstractType->setEncryptor(
                 $this->encryptorFactory->getEncryptor(FakeEncryptor::class),
             );
         }
@@ -140,8 +135,8 @@ class DatabaseDecryptCommand extends AbstractDatabaseCommand
     private function restoreEncryptors(array $resetEncryptors): void
     {
         foreach ($resetEncryptors as $typeName => $encryptor) {
-            $type = $this->encryptorFactory->getType($typeName);
-            $type->setEncryptor($encryptor);
+            $abstractType = $this->encryptorFactory->getType($typeName);
+            $abstractType->setEncryptor($encryptor);
         }
     }
 }

@@ -16,34 +16,34 @@ use PrecisionSoft\Doctrine\Encrypt\Encryptor\FakeEncryptor;
  */
 final class FakeEncryptorTest extends TestCase
 {
-    private FakeEncryptor $encryptor;
+    private FakeEncryptor $fakeEncryptor;
 
     protected function setUp(): void
     {
-        $this->encryptor = new FakeEncryptor();
+        $this->fakeEncryptor = new FakeEncryptor();
     }
 
     public function testEncryptReturnsInputUnchanged(): void
     {
         $value = 'any-value';
 
-        static::assertSame($value, $this->encryptor->encrypt($value));
+        static::assertSame($value, $this->fakeEncryptor->encrypt($value));
     }
 
     public function testDecryptReturnsInputUnchanged(): void
     {
         $value = 'any-value';
 
-        static::assertSame($value, $this->encryptor->decrypt($value));
+        static::assertSame($value, $this->fakeEncryptor->decrypt($value));
     }
 
     public function testGetTypeClassReturnsNull(): void
     {
-        static::assertNull($this->encryptor->getTypeClass());
+        static::assertSame(null, $this->fakeEncryptor->getTypeClass());
     }
 
     public function testGetTypeNameReturnsNull(): void
     {
-        static::assertNull($this->encryptor->getTypeName());
+        static::assertSame(null, $this->fakeEncryptor->getTypeName());
     }
 }

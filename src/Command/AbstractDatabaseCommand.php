@@ -53,8 +53,8 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
     {
         $originalEntityData = [];
 
-        foreach ($entityMetadataDto->getEncryptionFields() as $field => $type) {
-            $originalEntityData[$field] = null;
+        foreach ($entityMetadataDto->getEncryptionFields() as $fieldName => $typeName) {
+            $originalEntityData[$fieldName] = null;
         }
 
         return $originalEntityData;
@@ -78,9 +78,9 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
             false,
         );
 
-        $question = $this->getHelper('question');
+        $questionHelper = $this->getHelper('question');
 
-        if (false === $question->ask($this->input, $this->output, $confirmationQuestion)) {
+        if (false === $questionHelper->ask($this->input, $this->output, $confirmationQuestion)) {
             throw new StopException();
         }
     }

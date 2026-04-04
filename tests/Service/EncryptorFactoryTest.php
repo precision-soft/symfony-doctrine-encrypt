@@ -45,82 +45,84 @@ final class EncryptorFactoryTest extends AbstractTestCase
 
     public function testGetEncryptor(): void
     {
-        /** @var EncryptorFactory|MockInterface $mock */
-        $mock = $this->get(EncryptorFactory::class);
+        /** @var EncryptorFactory|MockInterface $encryptorFactory */
+        $encryptorFactory = $this->get(EncryptorFactory::class);
 
-        $encryptor = $mock->getEncryptor(AES256FixedEncryptor::class);
+        $encryptor = $encryptorFactory->getEncryptor(AES256FixedEncryptor::class);
 
         static::assertInstanceOf(AES256FixedEncryptor::class, $encryptor);
     }
 
     public function testGetEncryptorByType(): void
     {
-        /** @var EncryptorFactory|MockInterface $mock */
-        $mock = $this->get(EncryptorFactory::class);
+        /** @var EncryptorFactory|MockInterface $encryptorFactory */
+        $encryptorFactory = $this->get(EncryptorFactory::class);
 
-        $encryptor = $mock->getEncryptorByType(AES256Type::getFullName());
+        $encryptor = $encryptorFactory->getEncryptorByType(AES256Type::getFullName());
 
         static::assertInstanceOf(AES256Encryptor::class, $encryptor);
     }
 
     public function testGetType(): void
     {
-        /** @var EncryptorFactory|MockInterface $mock */
-        $mock = $this->get(EncryptorFactory::class);
+        /** @var EncryptorFactory|MockInterface $encryptorFactory */
+        $encryptorFactory = $this->get(EncryptorFactory::class);
 
-        Type::addType(AES256Type::getFullName(), AES256Type::class);
+        if (false === Type::hasType(AES256Type::getFullName())) {
+            Type::addType(AES256Type::getFullName(), AES256Type::class);
+        }
 
-        $type = $mock->getType(AES256Type::getFullName());
+        $abstractType = $encryptorFactory->getType(AES256Type::getFullName());
 
-        static::assertInstanceOf(AES256Type::class, $type);
+        static::assertInstanceOf(AES256Type::class, $abstractType);
     }
 
     public function testGetEncryptors(): void
     {
-        /** @var EncryptorFactory $mock */
-        $mock = $this->get(EncryptorFactory::class);
+        /** @var EncryptorFactory $encryptorFactory */
+        $encryptorFactory = $this->get(EncryptorFactory::class);
 
-        static::assertIsArray($mock->getEncryptors());
-        static::assertNotEmpty($mock->getEncryptors());
+        static::assertSame(true, \is_array($encryptorFactory->getEncryptors()));
+        static::assertSame(true, [] !== $encryptorFactory->getEncryptors());
     }
 
     public function testGetTypeNames(): void
     {
-        /** @var EncryptorFactory $mock */
-        $mock = $this->get(EncryptorFactory::class);
+        /** @var EncryptorFactory $encryptorFactory */
+        $encryptorFactory = $this->get(EncryptorFactory::class);
 
-        static::assertIsArray($mock->getTypeNames());
-        static::assertNotEmpty($mock->getTypeNames());
+        static::assertSame(true, \is_array($encryptorFactory->getTypeNames()));
+        static::assertSame(true, [] !== $encryptorFactory->getTypeNames());
     }
 
     public function testGetEncryptorThrowsNotFoundException(): void
     {
-        /** @var EncryptorFactory $mock */
-        $mock = $this->get(EncryptorFactory::class);
+        /** @var EncryptorFactory $encryptorFactory */
+        $encryptorFactory = $this->get(EncryptorFactory::class);
 
         $this->expectException(EncryptorNotFoundException::class);
 
-        $mock->getEncryptor('NonExistentEncryptorClass');
+        $encryptorFactory->getEncryptor('NonExistentEncryptorClass');
     }
 
     public function testGetEncryptorByTypeThrowsNotFoundException(): void
     {
-        /** @var EncryptorFactory $mock */
-        $mock = $this->get(EncryptorFactory::class);
+        /** @var EncryptorFactory $encryptorFactory */
+        $encryptorFactory = $this->get(EncryptorFactory::class);
 
         $this->expectException(EncryptorNotFoundException::class);
 
-        $mock->getEncryptorByType('nonExistentType');
+        $encryptorFactory->getEncryptorByType('nonExistentType');
     }
 
     public function testGetTypeThrowsTypeNotFoundException(): void
     {
-        /** @var EncryptorFactory $mock */
-        $mock = $this->get(EncryptorFactory::class);
+        /** @var EncryptorFactory $encryptorFactory */
+        $encryptorFactory = $this->get(EncryptorFactory::class);
 
         $this->expectException(TypeNotFoundException::class);
 
-        $mock->getType('nonExistentType');
+        $encryptorFactory->getType('nonExistentType');
     }
 
     public function testDuplicateEncryptorThrowsException(): void
@@ -139,7 +141,7 @@ final class EncryptorFactoryTest extends AbstractTestCase
     {
         $salt = \str_repeat('a', 32);
 
-        $factory = new EncryptorFactory(
+        $encryptorFactoryInstance = new EncryptorFactory(
             [
                 new AES256Encryptor($salt),
                 new AES256FixedEncryptor($salt),
@@ -147,15 +149,15 @@ final class EncryptorFactoryTest extends AbstractTestCase
             [AES256Encryptor::class],
         );
 
-        static::assertCount(1, $factory->getEncryptors());
-        static::assertArrayHasKey(AES256Encryptor::class, $factory->getEncryptors());
+        static::assertCount(1, $encryptorFactoryInstance->getEncryptors());
+        static::assertArrayHasKey(AES256Encryptor::class, $encryptorFactoryInstance->getEncryptors());
     }
 
     public function testEnabledEncryptorsFilteringSkipsFakeEncryptor(): void
     {
         $salt = \str_repeat('a', 32);
 
-        $factory = new EncryptorFactory(
+        $encryptorFactoryInstance = new EncryptorFactory(
             [
                 new AES256Encryptor($salt),
                 new FakeEncryptor(),
@@ -163,6 +165,8 @@ final class EncryptorFactoryTest extends AbstractTestCase
             [AES256Encryptor::class],
         );
 
-        static::assertCount(1, $factory->getEncryptors());
+        static::assertCount(2, $encryptorFactoryInstance->getEncryptors());
+        static::assertArrayHasKey(AES256Encryptor::class, $encryptorFactoryInstance->getEncryptors());
+        static::assertArrayHasKey(FakeEncryptor::class, $encryptorFactoryInstance->getEncryptors());
     }
 }
