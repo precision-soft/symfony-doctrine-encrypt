@@ -41,7 +41,7 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
     {
         $managerName = $this->input->getOption(self::OPTION_MANAGER);
 
-        return \is_string($managerName) ? $managerName : null;
+        return true === \is_string($managerName) ? $managerName : null;
     }
 
     protected function getManager(): ObjectManager

@@ -362,7 +362,7 @@ final class AbstractEncryptorCryptoTest extends TestCase
         static::assertSame('long-salt-test', $decrypted);
     }
 
-    public function testAes256AndAes256FixedCannotDecryptEachOther(): void
+    public function testAes256AndAes256FixedCanDecryptEachOther(): void
     {
         $salt = self::SALT;
         $aes256Encryptor = new Aes256Encryptor($salt);
