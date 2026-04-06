@@ -8,13 +8,19 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Encrypt\Command;
 
+use Doctrine\ORM\EntityRepository;
+use Doctrine\ORM\QueryBuilder;
+use Doctrine\ORM\UnitOfWork;
 use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\Persistence\ObjectManager;
+use PrecisionSoft\Doctrine\Encrypt\Contract\EncryptorInterface;
 use PrecisionSoft\Doctrine\Encrypt\Dto\EntityMetadataDto;
+use PrecisionSoft\Doctrine\Encrypt\Encryptor\FakeEncryptor;
 use PrecisionSoft\Doctrine\Encrypt\Exception\StopException;
 use PrecisionSoft\Doctrine\Encrypt\Service\EncryptorFactory;
 use PrecisionSoft\Doctrine\Encrypt\Service\EntityService;
 use PrecisionSoft\Symfony\Console\Command\AbstractCommand;
+use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Question\ConfirmationQuestion;
 
@@ -49,15 +55,88 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
         return $this->managerRegistry->getManager($this->getManagerName());
     }
 
-    protected function getOriginalEntityData(EntityMetadataDto $entityMetadataDto): array
-    {
-        $originalEntityData = [];
+    protected function processEntities(
+        EntityMetadataDto $entityMetadataDto,
+        string $sectionLabel,
+        bool $useFakeEncryptors = false,
+    ): void {
+        $className = $entityMetadataDto->getClassMetadata()->getName();
 
-        foreach ($entityMetadataDto->getEncryptionFields() as $fieldName => $typeName) {
-            $originalEntityData[$fieldName] = null;
-        }
+        $this->style->section('[' . $sectionLabel . '] ' . $className);
 
-        return $originalEntityData;
+        $identifierFieldNames = $entityMetadataDto->getClassMetadata()->getIdentifierFieldNames();
+
+        $entityManager = $this->getManager();
+        /** @var EntityRepository $repository */
+        $repository = $entityManager->getRepository($className);
+
+        $total = $repository->createQueryBuilder('e')
+            ->select('COUNT(e)')
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        $progressBar = new ProgressBar($this->output, (int)$total);
+        $lastIdentifierValues = null;
+
+        do {
+            $entityManager = $this->getManager();
+            /** @var UnitOfWork $unitOfWork */
+            $unitOfWork = $entityManager->getUnitOfWork();
+
+            /** @var EntityRepository $repository */
+            $repository = $entityManager->getRepository($className);
+
+            $queryBuilder = $repository->createQueryBuilder('e')
+                ->select('e');
+
+            foreach ($identifierFieldNames as $identifierFieldName) {
+                $queryBuilder->addOrderBy('e.' . $identifierFieldName, 'ASC');
+            }
+
+            $queryBuilder->setMaxResults(50);
+
+            if (null !== $lastIdentifierValues) {
+                $this->applyKeysetPagination($queryBuilder, $identifierFieldNames, $lastIdentifierValues);
+            }
+
+            $entities = $queryBuilder->getQuery()->getResult();
+
+            if ([] === $entities) {
+                break;
+            }
+
+            $resetEncryptors = true === $useFakeEncryptors
+                ? $this->resetEncryptorsToFake($entityMetadataDto->getEncryptionFields())
+                : null;
+
+            try {
+                foreach ($entities as $entity) {
+                    $lastIdentifierValues = $entityMetadataDto->getClassMetadata()->getIdentifierValues($entity);
+
+                    $originalEntityData = $unitOfWork->getOriginalEntityData($entity);
+
+                    foreach ($entityMetadataDto->getEncryptionFields() as $fieldName => $typeName) {
+                        $originalEntityData[$fieldName] = null;
+                    }
+
+                    $unitOfWork->setOriginalEntityData($entity, $originalEntityData);
+                    $entityManager->persist($entity);
+                    $progressBar->advance();
+                }
+
+                $entityManager->flush();
+            } finally {
+                if (null !== $resetEncryptors) {
+                    $this->restoreEncryptors($resetEncryptors);
+                }
+            }
+
+            $entityManager->clear();
+            \gc_collect_cycles();
+        } while (true);
+
+        $progressBar->finish();
+        $this->writeln('');
     }
 
     protected function askForConfirmation(array $entitiesWithEncryption): void
@@ -82,6 +161,80 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
 
         if (false === $questionHelper->ask($this->input, $this->output, $confirmationQuestion)) {
             throw new StopException();
+        }
+    }
+
+    protected function applyKeysetPagination(
+        QueryBuilder $queryBuilder,
+        array $identifierFieldNames,
+        array $lastIdentifierValues,
+    ): void {
+        if (1 === \count($identifierFieldNames)) {
+            $identifierFieldName = $identifierFieldNames[0];
+            $queryBuilder
+                ->andWhere('e.' . $identifierFieldName . ' > :lastId')
+                ->setParameter('lastId', $lastIdentifierValues[$identifierFieldName]);
+
+            return;
+        }
+
+        $conditions = [];
+        $previousFields = [];
+
+        foreach ($identifierFieldNames as $index => $identifierFieldName) {
+            $parameterName = 'lastId' . $index;
+            $queryBuilder->setParameter($parameterName, $lastIdentifierValues[$identifierFieldName]);
+
+            $equalParts = [];
+            foreach ($previousFields as $previousIndex => $previousFieldName) {
+                $equalParts[] = 'e.' . $previousFieldName . ' = :lastId' . $previousIndex;
+            }
+
+            $greaterPart = 'e.' . $identifierFieldName . ' > :' . $parameterName;
+
+            $conditions[] = [] === $equalParts
+                ? $greaterPart
+                : '(' . \implode(' AND ', $equalParts) . ' AND ' . $greaterPart . ')';
+
+            $previousFields[$index] = $identifierFieldName;
+        }
+
+        $queryBuilder->andWhere('(' . \implode(' OR ', $conditions) . ')');
+    }
+
+    /**
+     * @param array<string, string> $encryptionFields
+     *
+     * @return array<string, EncryptorInterface>
+     */
+    private function resetEncryptorsToFake(array $encryptionFields): array
+    {
+        $resetEncryptors = [];
+
+        foreach ($encryptionFields as $typeName) {
+            if (true === isset($resetEncryptors[$typeName])) {
+                continue;
+            }
+
+            $abstractType = $this->encryptorFactory->getType($typeName);
+            $resetEncryptors[$typeName] = $abstractType->getEncryptor();
+
+            $abstractType->setEncryptor(
+                $this->encryptorFactory->getEncryptor(FakeEncryptor::class),
+            );
+        }
+
+        return $resetEncryptors;
+    }
+
+    /**
+     * @param array<string, EncryptorInterface> $resetEncryptors
+     */
+    private function restoreEncryptors(array $resetEncryptors): void
+    {
+        foreach ($resetEncryptors as $typeName => $encryptor) {
+            $abstractType = $this->encryptorFactory->getType($typeName);
+            $abstractType->setEncryptor($encryptor);
         }
     }
 

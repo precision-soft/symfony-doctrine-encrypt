@@ -39,11 +39,11 @@ final class FakeEncryptorTest extends TestCase
 
     public function testGetTypeClassReturnsNull(): void
     {
-        static::assertSame(null, $this->fakeEncryptor->getTypeClass());
+        static::assertNull($this->fakeEncryptor->getTypeClass());
     }
 
     public function testGetTypeNameReturnsNull(): void
     {
-        static::assertSame(null, $this->fakeEncryptor->getTypeName());
+        static::assertNull($this->fakeEncryptor->getTypeName());
     }
 }

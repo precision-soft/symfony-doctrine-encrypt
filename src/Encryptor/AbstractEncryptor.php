@@ -25,6 +25,8 @@ abstract class AbstractEncryptor implements EncryptorInterface
 
     private readonly string $macKey;
 
+    protected readonly string $nonceKey;
+
     abstract public function getTypeClass(): ?string;
 
     abstract protected function generateNonce(string $data): string;
@@ -39,6 +41,7 @@ abstract class AbstractEncryptor implements EncryptorInterface
 
         $this->encryptionKey = self::deriveKey($salt, 'encryption');
         $this->macKey = self::deriveKey($salt, 'authentication');
+        $this->nonceKey = self::deriveKey($salt, 'nonce');
     }
 
     private static function deriveKey(string $salt, string $info): string
@@ -107,7 +110,7 @@ abstract class AbstractEncryptor implements EncryptorInterface
             throw new Exception('could not validate ciphertext');
         }
 
-        [$_marker, $ciphertext, $mac, $nonce] = $parts;
+        [, $ciphertext, $mac, $nonce] = $parts;
 
         if (false === ($ciphertext = \base64_decode($ciphertext, true))) {
             throw new Exception('could not validate ciphertext');

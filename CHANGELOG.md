@@ -9,7 +9,7 @@
 - Rename `AES256Encryptor` to `Aes256Encryptor`, `AES256FixedEncryptor` to `Aes256FixedEncryptor` — CamelCase acronyms naming convention
 - Rename `AES256Type` to `Aes256Type`, `AES256FixedType` to `Aes256FixedType` — type short names change from `AES256` to `Aes256` and `AES256fixed` to `Aes256fixed`
 - `AbstractEncryptor` — use HKDF-derived encryption and MAC keys instead of raw salt; remove `serialize()`/`unserialize()` wrapping; use `hash_hmac()` instead of `hash()` for MAC computation
-- `Aes256FixedEncryptor::generateNonce()` — rewrite deterministic nonce from cyclic character loop to `hash_hmac('sha256')` truncated to IV length
+- `Aes256FixedEncryptor::generateNonce()` — use HKDF-derived `$nonceKey` instead of raw `$salt` for HMAC key; rewrite deterministic nonce from cyclic character loop to `hash_hmac('sha256')` truncated to IV length
 - `AbstractEncryptor::encrypt()` — skip encryption if data already has encryption marker (double-encrypt guard)
 - Upgrade `precision-soft/symfony-console` from `2.*` to `^4.0`
 
@@ -22,7 +22,8 @@
 - `EntityService::isValueEncrypted()` — explicit `true === str_starts_with()` instead of implicit boolean
 - `DatabaseDecryptCommand` / `DatabaseEncryptCommand` — replace `PARTIAL e.{fields}` with `select('e')` (DBAL 4 compatibility)
 - `EncryptorFactory` — always include `FakeEncryptor` even when `enabledEncryptors` filter is active
-- Remove 4 resolved entries from `phpstan-baseline.neon`
+- `AbstractDatabaseCommand::getOriginalEntityData()` — read full original entity data from UnitOfWork before overriding encrypted fields with null, preventing unnecessary UPDATEs on non-encrypted columns
+- `AbstractType::getSQLDeclaration()` — default to `VARCHAR(1000)` when no column length specified, preventing silent data truncation of encrypted values
 
 ### Added
 
@@ -41,3 +42,4 @@
 - Standardized `.dev/` infrastructure (Dockerfile, docker-compose, pre-commit, utility.sh, .profile)
 - Renamed `phpunit.xml` to `phpunit.xml.dist`
 - Quote `$COMPOSER_DEV_MODE` variable in `composer.json` hook script
+- Extract shared loop logic into `AbstractDatabaseCommand::processEntities()` template method, eliminating duplication between `DatabaseDecryptCommand` and `DatabaseEncryptCommand`

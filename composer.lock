@@ -760,16 +760,16 @@
         },
         {
             "name": "precision-soft/symfony-console",
-            "version": "v4.0.0",
+            "version": "v4.0.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/precision-soft/symfony-console.git",
-                "reference": "14dab6b88c61edc67d7bef11dd21fc223aa5a3ac"
+                "reference": "f303bd239917e2c26d25f4b2c2b259baae481ad0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/precision-soft/symfony-console/zipball/14dab6b88c61edc67d7bef11dd21fc223aa5a3ac",
-                "reference": "14dab6b88c61edc67d7bef11dd21fc223aa5a3ac",
+                "url": "https://api.github.com/repos/precision-soft/symfony-console/zipball/f303bd239917e2c26d25f4b2c2b259baae481ad0",
+                "reference": "f303bd239917e2c26d25f4b2c2b259baae481ad0",
                 "shasum": ""
             },
             "require": {
@@ -814,9 +814,9 @@
             ],
             "support": {
                 "issues": "https://github.com/precision-soft/symfony-console/issues",
-                "source": "https://github.com/precision-soft/symfony-console/tree/v4.0.0"
+                "source": "https://github.com/precision-soft/symfony-console/tree/v4.0.1"
             },
-            "time": "2026-04-04T18:52:23+00:00"
+            "time": "2026-04-06T06:48:23+00:00"
         },
         {
             "name": "psr/cache",
@@ -3392,22 +3392,23 @@
         },
         {
             "name": "precision-soft/symfony-phpunit",
-            "version": "v3.0.0",
+            "version": "v3.0.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/precision-soft/symfony-phpunit.git",
-                "reference": "0e4d916d79b00ebbd2f529ff8a8a7da044f38fcc"
+                "reference": "c2b3e33f18bcd3c7ce611e191e7e3f9bfc1f3922"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/precision-soft/symfony-phpunit/zipball/0e4d916d79b00ebbd2f529ff8a8a7da044f38fcc",
-                "reference": "0e4d916d79b00ebbd2f529ff8a8a7da044f38fcc",
+                "url": "https://api.github.com/repos/precision-soft/symfony-phpunit/zipball/c2b3e33f18bcd3c7ce611e191e7e3f9bfc1f3922",
+                "reference": "c2b3e33f18bcd3c7ce611e191e7e3f9bfc1f3922",
                 "shasum": ""
             },
             "require": {
                 "mockery/mockery": "^1.0",
                 "php": ">=8.2",
-                "symfony/phpunit-bridge": "^7.0"
+                "symfony/phpunit-bridge": "^7.0",
+                "symfony/string": "^7.0"
             },
             "require-dev": {
                 "doctrine/doctrine-bundle": "^2.0",
@@ -3419,8 +3420,7 @@
             },
             "suggest": {
                 "doctrine/doctrine-bundle": "Required to use ManagerRegistryMock",
-                "doctrine/orm": "Required to use ManagerRegistryMock",
-                "symfony/string": "Required to use SluggerInterfaceMock"
+                "doctrine/orm": "Required to use ManagerRegistryMock"
             },
             "type": "library",
             "autoload": {
@@ -3447,9 +3447,9 @@
             ],
             "support": {
                 "issues": "https://github.com/precision-soft/symfony-phpunit/issues",
-                "source": "https://github.com/precision-soft/symfony-phpunit/tree/v3.0.0"
+                "source": "https://github.com/precision-soft/symfony-phpunit/tree/v3.0.1"
             },
-            "time": "2026-04-04T18:26:44+00:00"
+            "time": "2026-04-06T06:44:20+00:00"
         },
         {
             "name": "react/cache",

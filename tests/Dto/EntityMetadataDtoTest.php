@@ -10,16 +10,19 @@ namespace PrecisionSoft\Doctrine\Encrypt\Test\Dto;
 
 use Doctrine\Persistence\Mapping\ClassMetadata;
 use Mockery;
-use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
-use PHPUnit\Framework\TestCase;
 use PrecisionSoft\Doctrine\Encrypt\Dto\EntityMetadataDto;
+use PrecisionSoft\Symfony\Phpunit\MockDto;
+use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
 
 /**
  * @internal
  */
-final class EntityMetadataDtoTest extends TestCase
+final class EntityMetadataDtoTest extends AbstractTestCase
 {
-    use MockeryPHPUnitIntegration;
+    public static function getMockDto(): MockDto
+    {
+        return new MockDto(EntityMetadataDto::class);
+    }
 
     public function testGetClassMetadata(): void
     {

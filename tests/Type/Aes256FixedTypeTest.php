@@ -11,24 +11,29 @@ namespace PrecisionSoft\Doctrine\Encrypt\Test\Type;
 use Doctrine\DBAL\Platforms\AbstractPlatform;
 use Doctrine\DBAL\Types\Type;
 use Mockery;
-use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
-use PHPUnit\Framework\TestCase;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256FixedEncryptor;
 use PrecisionSoft\Doctrine\Encrypt\Exception\Exception;
 use PrecisionSoft\Doctrine\Encrypt\Type\Aes256FixedType;
+use PrecisionSoft\Symfony\Phpunit\MockDto;
+use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
 
 /**
  * @internal
  */
-final class Aes256FixedTypeTest extends TestCase
+final class Aes256FixedTypeTest extends AbstractTestCase
 {
-    use MockeryPHPUnitIntegration;
-
     private Aes256FixedType $aes256FixedType;
     private Aes256FixedEncryptor $aes256FixedEncryptor;
 
+    public static function getMockDto(): MockDto
+    {
+        return new MockDto(Aes256FixedType::class);
+    }
+
     protected function setUp(): void
     {
+        parent::setUp();
+
         if (false === Type::hasType(Aes256FixedType::getFullName())) {
             Type::addType(Aes256FixedType::getFullName(), Aes256FixedType::class);
         }
@@ -67,7 +72,7 @@ final class Aes256FixedTypeTest extends TestCase
         /** @var AbstractPlatform $platform */
         $platform = Mockery::mock(AbstractPlatform::class);
 
-        static::assertSame(null, $this->aes256FixedType->convertToDatabaseValue(null, $platform));
+        static::assertNull($this->aes256FixedType->convertToDatabaseValue(null, $platform));
     }
 
     public function testConvertToPHPValueNullReturnsNull(): void
@@ -75,7 +80,7 @@ final class Aes256FixedTypeTest extends TestCase
         /** @var AbstractPlatform $platform */
         $platform = Mockery::mock(AbstractPlatform::class);
 
-        static::assertSame(null, $this->aes256FixedType->convertToPHPValue(null, $platform));
+        static::assertNull($this->aes256FixedType->convertToPHPValue(null, $platform));
     }
 
     public function testConvertWithoutEncryptorThrowsException(): void

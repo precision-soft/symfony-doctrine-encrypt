@@ -82,8 +82,8 @@ final class EncryptorFactoryTest extends AbstractTestCase
         /** @var EncryptorFactory $encryptorFactory */
         $encryptorFactory = $this->get(EncryptorFactory::class);
 
-        static::assertSame(true, \is_array($encryptorFactory->getEncryptors()));
-        static::assertSame(true, [] !== $encryptorFactory->getEncryptors());
+        static::assertIsArray($encryptorFactory->getEncryptors());
+        static::assertNotEmpty($encryptorFactory->getEncryptors());
     }
 
     public function testGetTypeNames(): void
@@ -91,8 +91,8 @@ final class EncryptorFactoryTest extends AbstractTestCase
         /** @var EncryptorFactory $encryptorFactory */
         $encryptorFactory = $this->get(EncryptorFactory::class);
 
-        static::assertSame(true, \is_array($encryptorFactory->getTypeNames()));
-        static::assertSame(true, [] !== $encryptorFactory->getTypeNames());
+        static::assertIsArray($encryptorFactory->getTypeNames());
+        static::assertNotEmpty($encryptorFactory->getTypeNames());
     }
 
     public function testGetEncryptorThrowsNotFoundException(): void

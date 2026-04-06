@@ -11,24 +11,29 @@ namespace PrecisionSoft\Doctrine\Encrypt\Test\Type;
 use Doctrine\DBAL\Platforms\AbstractPlatform;
 use Doctrine\DBAL\Types\Type;
 use Mockery;
-use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
-use PHPUnit\Framework\TestCase;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256Encryptor;
 use PrecisionSoft\Doctrine\Encrypt\Exception\Exception;
 use PrecisionSoft\Doctrine\Encrypt\Type\Aes256Type;
+use PrecisionSoft\Symfony\Phpunit\MockDto;
+use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
 
 /**
  * @internal
  */
-final class Aes256TypeTest extends TestCase
+final class Aes256TypeTest extends AbstractTestCase
 {
-    use MockeryPHPUnitIntegration;
-
     private Aes256Type $aes256Type;
     private Aes256Encryptor $aes256Encryptor;
 
+    public static function getMockDto(): MockDto
+    {
+        return new MockDto(Aes256Type::class);
+    }
+
     protected function setUp(): void
     {
+        parent::setUp();
+
         if (false === Type::hasType(Aes256Type::getFullName())) {
             Type::addType(Aes256Type::getFullName(), Aes256Type::class);
         }
@@ -67,7 +72,7 @@ final class Aes256TypeTest extends TestCase
         /** @var AbstractPlatform $platform */
         $platform = Mockery::mock(AbstractPlatform::class);
 
-        static::assertSame(null, $this->aes256Type->convertToDatabaseValue(null, $platform));
+        static::assertNull($this->aes256Type->convertToDatabaseValue(null, $platform));
     }
 
     public function testConvertToPHPValueNullReturnsNull(): void
@@ -75,7 +80,7 @@ final class Aes256TypeTest extends TestCase
         /** @var AbstractPlatform $platform */
         $platform = Mockery::mock(AbstractPlatform::class);
 
-        static::assertSame(null, $this->aes256Type->convertToPHPValue(null, $platform));
+        static::assertNull($this->aes256Type->convertToPHPValue(null, $platform));
     }
 
     public function testConvertWithoutEncryptorThrowsException(): void

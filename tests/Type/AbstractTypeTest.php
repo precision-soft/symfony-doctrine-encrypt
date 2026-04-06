@@ -11,21 +11,24 @@ namespace PrecisionSoft\Doctrine\Encrypt\Test\Type;
 use Doctrine\DBAL\Platforms\AbstractPlatform;
 use Doctrine\DBAL\Types\Type;
 use Mockery;
-use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
-use PHPUnit\Framework\TestCase;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256Encryptor;
 use PrecisionSoft\Doctrine\Encrypt\Exception\Exception;
 use PrecisionSoft\Doctrine\Encrypt\Type\Aes256FixedType;
 use PrecisionSoft\Doctrine\Encrypt\Type\Aes256Type;
+use PrecisionSoft\Symfony\Phpunit\MockDto;
+use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
 
 /**
  * Tests for AbstractType methods not covered by concrete type tests.
  *
  * @internal
  */
-final class AbstractTypeTest extends TestCase
+final class AbstractTypeTest extends AbstractTestCase
 {
-    use MockeryPHPUnitIntegration;
+    public static function getMockDto(): MockDto
+    {
+        return new MockDto(Aes256Type::class);
+    }
 
     public function testGetEncryptorReturnsConfiguredEncryptor(): void
     {
