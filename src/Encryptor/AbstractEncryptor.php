@@ -21,13 +21,13 @@ abstract class AbstractEncryptor implements EncryptorInterface
     protected const MINIMUM_KEY_LENGTH = 32;
     protected const GLUE = "\0";
 
+    protected readonly string $nonceKey;
+
     private readonly string $encryptionKey;
 
     private readonly string $macKey;
 
-    protected readonly string $nonceKey;
-
-    abstract public function getTypeClass(): ?string;
+    abstract public function getTypeClass(): string;
 
     abstract protected function generateNonce(string $data): string;
 
@@ -35,7 +35,7 @@ abstract class AbstractEncryptor implements EncryptorInterface
         #[\SensitiveParameter]
         protected readonly string $salt,
     ) {
-        if (\strlen($salt) < static::MINIMUM_KEY_LENGTH) {
+        if (static::MINIMUM_KEY_LENGTH > \strlen($salt)) {
             throw new Exception('invalid encryption salt');
         }
 
@@ -49,26 +49,30 @@ abstract class AbstractEncryptor implements EncryptorInterface
         return \hash_hkdf('sha256', $salt, 32, $info);
     }
 
-    final public function getTypeName(): ?string
+    final public function getTypeName(): string
     {
         $typeClass = $this->getTypeClass();
 
-        if (null === $typeClass) {
-            return null;
-        }
-
-        /** @var class-string<AbstractType> $typeClass */
         if (false === \is_a($typeClass, AbstractType::class, true)) {
             throw new Exception('invalid encryption type class');
         }
 
+        /** @var class-string<AbstractType> $typeClass */
         return $typeClass::getFullName();
     }
 
     public function encrypt(string $data): string
     {
         if (true === \str_starts_with($data, self::ENCRYPTION_MARKER . static::GLUE)) {
-            return $data;
+            $encryptedParts = \explode(static::GLUE, $data);
+
+            if (4 === \count($encryptedParts)
+                && false !== \base64_decode($encryptedParts[1], true)
+                && false !== \base64_decode($encryptedParts[2], true)
+                && false !== \base64_decode($encryptedParts[3], true)
+            ) {
+                return $data;
+            }
         }
 
         $nonce = $this->generateNonce($data);
@@ -104,13 +108,13 @@ abstract class AbstractEncryptor implements EncryptorInterface
             return $data;
         }
 
-        $parts = \explode(static::GLUE, $data);
+        $encryptedParts = \explode(static::GLUE, $data);
 
-        if (4 !== \count($parts)) {
+        if (4 !== \count($encryptedParts)) {
             throw new Exception('could not validate ciphertext');
         }
 
-        [, $ciphertext, $mac, $nonce] = $parts;
+        [, $ciphertext, $mac, $nonce] = $encryptedParts;
 
         if (false === ($ciphertext = \base64_decode($ciphertext, true))) {
             throw new Exception('could not validate ciphertext');

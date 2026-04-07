@@ -18,11 +18,7 @@ use PrecisionSoft\Doctrine\Encrypt\Type\Aes256Type;
 use PrecisionSoft\Symfony\Phpunit\MockDto;
 use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
 
-/**
- * Tests for AbstractType methods not covered by concrete type tests.
- *
- * @internal
- */
+/** @internal */
 final class AbstractTypeTest extends AbstractTestCase
 {
     public static function getMockDto(): MockDto

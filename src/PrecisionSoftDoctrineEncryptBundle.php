@@ -54,6 +54,10 @@ class PrecisionSoftDoctrineEncryptBundle extends Bundle
 
             $typeName = $encryptor->getTypeName();
 
+            if (null === $typeName) {
+                continue;
+            }
+
             if ([] !== $enabledTypes && false === \in_array($typeName, $enabledTypes, true)) {
                 continue;
             }

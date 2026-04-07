@@ -93,4 +93,34 @@ final class Aes256EncryptorTest extends TestCase
     {
         static::assertSame(Aes256Type::getFullName(), $this->aes256Encryptor->getTypeName());
     }
+
+    public function testEncryptAlreadyEncryptedDataIsIdempotent(): void
+    {
+        $plaintext = 'my-secret-password';
+
+        $encrypted = $this->aes256Encryptor->encrypt($plaintext);
+        $doubleEncrypted = $this->aes256Encryptor->encrypt($encrypted);
+
+        static::assertSame($encrypted, $doubleEncrypted);
+    }
+
+    public function testEncryptMarkerLookalikeWithInvalidBase64IsEncryptedNormally(): void
+    {
+        $lookalike = AbstractEncryptor::ENCRYPTION_MARKER . "\0!!!invalid!!!\0!!!invalid!!!\0!!!invalid!!!";
+
+        $encrypted = $this->aes256Encryptor->encrypt($lookalike);
+
+        static::assertNotSame($lookalike, $encrypted);
+        static::assertSame($lookalike, $this->aes256Encryptor->decrypt($encrypted));
+    }
+
+    public function testEncryptMarkerLookalikeWithTooFewPartsIsEncryptedNormally(): void
+    {
+        $lookalike = AbstractEncryptor::ENCRYPTION_MARKER . "\0" . \base64_encode('only-two-parts');
+
+        $encrypted = $this->aes256Encryptor->encrypt($lookalike);
+
+        static::assertNotSame($lookalike, $encrypted);
+        static::assertSame($lookalike, $this->aes256Encryptor->decrypt($encrypted));
+    }
 }

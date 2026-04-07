@@ -28,11 +28,7 @@ use PrecisionSoft\Doctrine\Encrypt\Service\EntityService;
 use PrecisionSoft\Doctrine\Encrypt\Type\Aes256FixedType;
 use stdClass;
 
-/**
- * Tests for EntityService::isValueEncrypted() and EntityService::setEncryptedParameter().
- *
- * @internal
- */
+/** @internal */
 final class EntityServiceExtendedTest extends TestCase
 {
     use MockeryPHPUnitIntegration;
@@ -48,7 +44,7 @@ final class EntityServiceExtendedTest extends TestCase
         $this->aes256FixedEncryptor = new Aes256FixedEncryptor($this->salt);
     }
 
-    public function testIsValueEncryptedReturnsTrueForEncryptedValue(): void
+    public function testHasEncryptedValueReturnsTrueForEncryptedValue(): void
     {
         $encryptedValue = $this->aes256Encryptor->encrypt('secret');
         $entity = new stdClass();
@@ -62,10 +58,10 @@ final class EntityServiceExtendedTest extends TestCase
             $encryptedValue,
         );
 
-        static::assertSame(true, $entityService->isValueEncrypted($entity, 'secretField'));
+        static::assertSame(true, $entityService->hasEncryptedValue($entity, 'secretField'));
     }
 
-    public function testIsValueEncryptedReturnsFalseForPlainValue(): void
+    public function testHasEncryptedValueReturnsFalseForPlainValue(): void
     {
         $entity = new stdClass();
 
@@ -78,10 +74,10 @@ final class EntityServiceExtendedTest extends TestCase
             'plain-text-value',
         );
 
-        static::assertSame(false, $entityService->isValueEncrypted($entity, 'secretField'));
+        static::assertSame(false, $entityService->hasEncryptedValue($entity, 'secretField'));
     }
 
-    public function testIsValueEncryptedReturnsFalseForNullValue(): void
+    public function testHasEncryptedValueReturnsFalseForNullValue(): void
     {
         $entity = new stdClass();
 
@@ -94,10 +90,10 @@ final class EntityServiceExtendedTest extends TestCase
             null,
         );
 
-        static::assertSame(false, $entityService->isValueEncrypted($entity, 'secretField'));
+        static::assertSame(false, $entityService->hasEncryptedValue($entity, 'secretField'));
     }
 
-    public function testIsValueEncryptedReturnsFalseForEmptyString(): void
+    public function testHasEncryptedValueReturnsFalseForEmptyString(): void
     {
         $entity = new stdClass();
 
@@ -110,10 +106,10 @@ final class EntityServiceExtendedTest extends TestCase
             '',
         );
 
-        static::assertSame(false, $entityService->isValueEncrypted($entity, 'secretField'));
+        static::assertSame(false, $entityService->hasEncryptedValue($entity, 'secretField'));
     }
 
-    public function testIsValueEncryptedWithCompositeIdentifier(): void
+    public function testHasEncryptedValueWithCompositeIdentifier(): void
     {
         $encryptedValue = $this->aes256Encryptor->encrypt('composite-test');
         $entity = new stdClass();
@@ -127,13 +123,13 @@ final class EntityServiceExtendedTest extends TestCase
             $encryptedValue,
         );
 
-        static::assertSame(true, $entityService->isValueEncrypted($entity, 'secretField'));
+        static::assertSame(true, $entityService->hasEncryptedValue($entity, 'secretField'));
     }
 
     public function testSetEncryptedParameterSetsEncryptedValueOnQueryBuilder(): void
     {
-        $class = 'App\\Entity\\User';
-        $field = 'email';
+        $className = 'App\\Entity\\User';
+        $fieldName = 'email';
         $plaintext = 'user@example.com';
 
         $encryptorFactory = $this->createEncryptorFactoryMock(
@@ -143,14 +139,14 @@ final class EntityServiceExtendedTest extends TestCase
 
         $classMetadataMock = Mockery::mock(ClassMetadata::class);
         $classMetadataMock->shouldReceive('getFieldNames')
-            ->andReturn([$field]);
+            ->andReturn([$fieldName]);
         $classMetadataMock->shouldReceive('getTypeOfField')
-            ->with($field)
+            ->with($fieldName)
             ->andReturn(Aes256FixedType::getFullName());
 
         $classMetadataFactory = Mockery::mock(ClassMetadataFactory::class);
         $classMetadataFactory->shouldReceive('getMetadataFor')
-            ->with($class)
+            ->with($className)
             ->andReturn($classMetadataMock);
 
         $entityManager = Mockery::mock(EntityManagerInterface::class);
@@ -175,16 +171,16 @@ final class EntityServiceExtendedTest extends TestCase
         $entityService->setEncryptedParameter(
             $ormQueryBuilder,
             'email_param',
-            $class,
-            $field,
+            $className,
+            $fieldName,
             $plaintext,
         );
     }
 
     public function testSetEncryptedParameterWithCustomManager(): void
     {
-        $class = 'App\\Entity\\User';
-        $field = 'email';
+        $className = 'App\\Entity\\User';
+        $fieldName = 'email';
         $plaintext = 'user@example.com';
         $managerName = 'custom_manager';
 
@@ -195,14 +191,14 @@ final class EntityServiceExtendedTest extends TestCase
 
         $classMetadataMock = Mockery::mock(ClassMetadata::class);
         $classMetadataMock->shouldReceive('getFieldNames')
-            ->andReturn([$field]);
+            ->andReturn([$fieldName]);
         $classMetadataMock->shouldReceive('getTypeOfField')
-            ->with($field)
+            ->with($fieldName)
             ->andReturn(Aes256FixedType::getFullName());
 
         $classMetadataFactory = Mockery::mock(ClassMetadataFactory::class);
         $classMetadataFactory->shouldReceive('getMetadataFor')
-            ->with($class)
+            ->with($className)
             ->andReturn($classMetadataMock);
 
         $entityManager = Mockery::mock(EntityManagerInterface::class);
@@ -227,8 +223,8 @@ final class EntityServiceExtendedTest extends TestCase
         $entityService->setEncryptedParameter(
             $ormQueryBuilder,
             'param',
-            $class,
-            $field,
+            $className,
+            $fieldName,
             $plaintext,
             $managerName,
         );

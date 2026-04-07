@@ -15,12 +15,7 @@ use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256Encryptor;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256FixedEncryptor;
 use PrecisionSoft\Doctrine\Encrypt\Exception\Exception;
 
-/**
- * Deep cryptographic tests for AbstractEncryptor, covering HKDF key derivation,
- * HMAC MAC computation, nonce derivation, and tamper-resistance.
- *
- * @internal
- */
+/** @internal */
 final class AbstractEncryptorCryptoTest extends TestCase
 {
     private const SALT = 'abcdefghijklmnopqrstuvwxyz123456';

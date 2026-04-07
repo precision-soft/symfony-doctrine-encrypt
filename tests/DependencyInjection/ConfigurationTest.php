@@ -49,14 +49,14 @@ final class ConfigurationTest extends TestCase
             $this->configuration,
             [
                 [
-                    'salt' => 'my-secret-salt',
+                    'salt' => 'my-secret-salt-for-full-config-test',
                     'enabled_types' => ['encryptedAes256', 'encryptedAes256fixed'],
                     'encryptors' => ['App\\Encryptor\\CustomEncryptor'],
                 ],
             ],
         );
 
-        static::assertSame('my-secret-salt', $config['salt']);
+        static::assertSame('my-secret-salt-for-full-config-test', $config['salt']);
         static::assertSame(['encryptedAes256', 'encryptedAes256fixed'], $config['enabled_types']);
         static::assertSame(['App\\Encryptor\\CustomEncryptor'], $config['encryptors']);
     }
@@ -79,7 +79,7 @@ final class ConfigurationTest extends TestCase
             $this->configuration,
             [
                 [
-                    'salt' => 'some-salt-value',
+                    'salt' => 'some-salt-value-long-enough-for-test',
                 ],
             ],
         );
@@ -93,7 +93,7 @@ final class ConfigurationTest extends TestCase
             $this->configuration,
             [
                 [
-                    'salt' => 'some-salt-value',
+                    'salt' => 'some-salt-value-long-enough-for-test',
                 ],
             ],
         );
@@ -115,17 +115,17 @@ final class ConfigurationTest extends TestCase
             $this->configuration,
             [
                 [
-                    'salt' => 'first-salt',
+                    'salt' => 'first-salt-long-enough-for-validation',
                     'enabled_types' => ['type1'],
                 ],
                 [
-                    'salt' => 'second-salt',
+                    'salt' => 'second-salt-long-enough-for-valid',
                     'enabled_types' => ['type2'],
                 ],
             ],
         );
 
-        static::assertSame('second-salt', $config['salt']);
+        static::assertSame('second-salt-long-enough-for-valid', $config['salt']);
         static::assertSame(['type1', 'type2'], $config['enabled_types']);
     }
 }

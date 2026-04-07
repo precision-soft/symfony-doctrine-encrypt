@@ -23,6 +23,7 @@ use PrecisionSoft\Symfony\Console\Command\AbstractCommand;
 use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Question\ConfirmationQuestion;
+use Throwable;
 
 abstract class AbstractDatabaseCommand extends AbstractCommand
 {
@@ -125,6 +126,10 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
                 }
 
                 $entityManager->flush();
+            } catch (Throwable $throwable) {
+                $this->managerRegistry->resetManager($this->getManagerName());
+
+                throw $throwable;
             } finally {
                 if (null !== $resetEncryptors) {
                     $this->restoreEncryptors($resetEncryptors);
@@ -139,6 +144,9 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
         $this->writeln('');
     }
 
+    /**
+     * @param EntityMetadataDto[] $entitiesWithEncryption
+     */
     protected function askForConfirmation(array $entitiesWithEncryption): void
     {
         if (false === $this->input->isInteractive()) {
@@ -164,6 +172,10 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
         }
     }
 
+    /**
+     * @param string[] $identifierFieldNames
+     * @param array<string, mixed> $lastIdentifierValues
+     */
     protected function applyKeysetPagination(
         QueryBuilder $queryBuilder,
         array $identifierFieldNames,
@@ -238,6 +250,9 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
         }
     }
 
+    /**
+     * @param string[] $questionParts
+     */
     private function getQuestionText(array $questionParts): string
     {
         $maxLength = 0;

@@ -21,6 +21,10 @@ class Configuration implements ConfigurationInterface
         $nodeBuilder = $rootNode->children();
         $nodeBuilder->scalarNode('salt')
             ->isRequired()
+            ->validate()
+            ->ifTrue(static fn(mixed $value): bool => false === \is_string($value) || 32 > \strlen($value))
+            ->thenInvalid('the salt must be a string of at least 32 characters')
+            ->end()
             ->end();
         $nodeBuilder->arrayNode('enabled_types')
             ->scalarPrototype()

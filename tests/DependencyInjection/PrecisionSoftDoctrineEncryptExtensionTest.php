@@ -55,14 +55,14 @@ final class PrecisionSoftDoctrineEncryptExtensionTest extends TestCase
         $extension->load(
             [
                 [
-                    'salt' => 'minimal-salt-value',
+                    'salt' => 'minimal-salt-value-long-enough-for-test',
                 ],
             ],
             $container,
         );
 
         static::assertSame(
-            'minimal-salt-value',
+            'minimal-salt-value-long-enough-for-test',
             $container->getParameter('precision_soft_doctrine_encrypt.salt'),
         );
         static::assertSame(

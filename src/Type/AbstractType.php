@@ -28,7 +28,7 @@ abstract class AbstractType extends StringType
 
     public function getSQLDeclaration(array $column, AbstractPlatform $platform): string
     {
-        if (false === isset($column['length']) || null === $column['length']) {
+        if (false === isset($column['length'])) {
             $column['length'] = self::DEFAULT_LENGTH;
         }
 
@@ -53,14 +53,30 @@ abstract class AbstractType extends StringType
     {
         $this->validate();
 
-        return (null === $value) ? null : $this->encryptor->encrypt((string)$value);
+        if (null === $value) {
+            return null;
+        }
+
+        if (false === \is_string($value)) {
+            throw new Exception(\sprintf('expected string value for encryption, got `%s`', \get_debug_type($value)));
+        }
+
+        return $this->encryptor->encrypt($value);
     }
 
     final public function convertToPHPValue($value, AbstractPlatform $platform): ?string
     {
         $this->validate();
 
-        return (null === $value) ? null : $this->encryptor->decrypt((string)$value);
+        if (null === $value) {
+            return null;
+        }
+
+        if (false === \is_string($value)) {
+            throw new Exception(\sprintf('expected string value for decryption, got `%s`', \get_debug_type($value)));
+        }
+
+        return $this->encryptor->decrypt($value);
     }
 
     private function validate(): void

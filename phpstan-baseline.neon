@@ -13,30 +13,6 @@ parameters:
 			path: src/Command/AbstractDatabaseCommand.php
 
 		-
-			message: '#^Method PrecisionSoft\\Doctrine\\Encrypt\\Command\\AbstractDatabaseCommand\:\:applyKeysetPagination\(\) has parameter \$identifierFieldNames with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Command/AbstractDatabaseCommand.php
-
-		-
-			message: '#^Method PrecisionSoft\\Doctrine\\Encrypt\\Command\\AbstractDatabaseCommand\:\:applyKeysetPagination\(\) has parameter \$lastIdentifierValues with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Command/AbstractDatabaseCommand.php
-
-		-
-			message: '#^Method PrecisionSoft\\Doctrine\\Encrypt\\Command\\AbstractDatabaseCommand\:\:askForConfirmation\(\) has parameter \$entitiesWithEncryption with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Command/AbstractDatabaseCommand.php
-
-		-
-			message: '#^Method PrecisionSoft\\Doctrine\\Encrypt\\Command\\AbstractDatabaseCommand\:\:getQuestionText\(\) has parameter \$questionParts with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Command/AbstractDatabaseCommand.php
-
-		-
 			message: '#^PHPDoc tag @var for variable \$repository contains generic class Doctrine\\ORM\\EntityRepository but does not specify its types\: T$#'
 			identifier: missingType.generics
 			count: 2
@@ -53,30 +29,6 @@ parameters:
 			identifier: missingType.generics
 			count: 1
 			path: src/Dto/EntityMetadataDto.php
-
-		-
-			message: '#^Call to function is_a\(\) with arguments class\-string\<PrecisionSoft\\Doctrine\\Encrypt\\Type\\AbstractType\>, ''PrecisionSoft\\\\Doctrine\\\\Encrypt\\\\Type\\\\AbstractType'' and true will always evaluate to true\.$#'
-			identifier: function.alreadyNarrowedType
-			count: 1
-			path: src/Encryptor/AbstractEncryptor.php
-
-		-
-			message: '#^Parameter \#1 \$name of static method Doctrine\\DBAL\\Types\\Type\:\:addType\(\) expects string, string\|null given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/PrecisionSoftDoctrineEncryptBundle.php
-
-		-
-			message: '#^Parameter \#1 \$name of static method Doctrine\\DBAL\\Types\\Type\:\:getType\(\) expects string, string\|null given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/PrecisionSoftDoctrineEncryptBundle.php
-
-		-
-			message: '#^Parameter \#1 \$name of static method Doctrine\\DBAL\\Types\\Type\:\:hasType\(\) expects string, string\|null given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/PrecisionSoftDoctrineEncryptBundle.php
 
 		-
 			message: '#^Parameter \#2 \$type of static method Doctrine\\DBAL\\Types\\Type\:\:addType\(\) expects class\-string\<Doctrine\\DBAL\\Types\\Type\>\|Doctrine\\DBAL\\Types\\Type, string given\.$#'
@@ -101,9 +53,3 @@ parameters:
 			identifier: argument.type
 			count: 1
 			path: src/Service/EntityService.php
-
-		-
-			message: '#^Strict comparison using \=\=\= between null and mixed will always evaluate to false\.$#'
-			identifier: identical.alwaysFalse
-			count: 1
-			path: src/Type/AbstractType.php

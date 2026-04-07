@@ -25,9 +25,7 @@ readonly class EntityMetadataDto
         return $this->classMetadata;
     }
 
-    /**
-     * @return array<string, string>
-     */
+    /** @return array<string, string> */
     public function getEncryptionFields(): array
     {
         return $this->encryptionFields;

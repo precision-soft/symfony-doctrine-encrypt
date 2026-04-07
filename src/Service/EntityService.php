@@ -54,7 +54,7 @@ class EntityService
     /**
      * returns true when the field is mapped with an encrypted doctrine type.
      */
-    public function isEncrypted(
+    public function hasEncryption(
         object|string $entity,
         string $field,
         ?string $managerName = null,
@@ -109,7 +109,7 @@ class EntityService
      *
      * This performs an additional dbal query to read the raw column value.
      */
-    public function isValueEncrypted(
+    public function hasEncryptedValue(
         object $entity,
         string $field,
         ?string $managerName = null,
@@ -137,7 +137,11 @@ class EntityService
 
         $rawValue = $queryBuilder->executeQuery()->fetchOne();
 
-        return true === \str_starts_with((string)$rawValue, AbstractEncryptor::ENCRYPTION_MARKER);
+        if (false === \is_string($rawValue)) {
+            return false;
+        }
+
+        return true === \str_starts_with($rawValue, AbstractEncryptor::ENCRYPTION_MARKER);
     }
 
     /**

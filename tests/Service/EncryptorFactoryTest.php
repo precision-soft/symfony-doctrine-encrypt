@@ -28,7 +28,7 @@ final class EncryptorFactoryTest extends AbstractTestCase
 {
     public static function getMockDto(): MockDto
     {
-        $salt = \uniqid(\uniqid(\uniqid('', true), true), true);
+        $salt = \str_repeat('x', 32);
 
         $encryptors = [
             new Aes256Encryptor($salt),

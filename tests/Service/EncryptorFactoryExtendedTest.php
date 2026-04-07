@@ -17,11 +17,7 @@ use PrecisionSoft\Doctrine\Encrypt\Service\EncryptorFactory;
 use PrecisionSoft\Doctrine\Encrypt\Type\AbstractType;
 use PrecisionSoft\Doctrine\Encrypt\Type\Aes256Type;
 
-/**
- * Extended tests for EncryptorFactory covering additional branches.
- *
- * @internal
- */
+/** @internal */
 final class EncryptorFactoryExtendedTest extends TestCase
 {
     public function testFakeEncryptorAlwaysIncludedEvenWithEnabledFilter(): void

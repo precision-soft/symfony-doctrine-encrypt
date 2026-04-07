@@ -22,6 +22,9 @@ class EncryptorFactory
     /** @var array<class-string, EncryptorInterface> */
     private array $encryptors;
 
+    /** @var array<string, EncryptorInterface> */
+    private array $encryptorsByTypeName;
+
     /** @var string[] */
     private array $typeNames;
 
@@ -34,6 +37,7 @@ class EncryptorFactory
         array $enabledEncryptors = [],
     ) {
         $this->encryptors = [];
+        $this->encryptorsByTypeName = [];
         $this->typeNames = [];
 
         foreach ($encryptors as $encryptor) {
@@ -51,6 +55,7 @@ class EncryptorFactory
                 }
 
                 $this->typeNames[] = $typeName;
+                $this->encryptorsByTypeName[$typeName] = $encryptor;
             }
 
             $this->encryptors[$encryptor::class] = $encryptor;
@@ -91,13 +96,11 @@ class EncryptorFactory
 
     public function getEncryptorByType(string $typeName): EncryptorInterface
     {
-        foreach ($this->encryptors as $encryptor) {
-            if ($typeName === $encryptor->getTypeName()) {
-                return $encryptor;
-            }
+        if (false === isset($this->encryptorsByTypeName[$typeName])) {
+            throw new EncryptorNotFoundException(\sprintf('no encryptor found for type `%s`', $typeName));
         }
 
-        throw new EncryptorNotFoundException(\sprintf('no encryptor found for type `%s`', $typeName));
+        return $this->encryptorsByTypeName[$typeName];
     }
 
     public function getType(string $typeName): AbstractType
