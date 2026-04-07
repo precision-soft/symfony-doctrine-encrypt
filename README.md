@@ -122,11 +122,11 @@ class CustomerRepository extends ServiceEntityRepository
 |---------------------------------------------------------|-----------------------------------------------------------------------------------------|
 | `getEncryptor(class, field)`                            | Returns the encryptor configured for the field                                          |
 | `hasEncryptor(class, field)`                            | Returns `true` if the field uses an encrypted type                                      |
-| `isEncrypted(entity\|class, field)`                     | Same as `hasEncryptor`, accepts object or class string                                  |
+| `hasEncryption(entity\|class, field)`                   | Same as `hasEncryptor`, accepts object or class string                                  |
 | `encrypt(data, class, field)`                           | Encrypts a value using the field's encryptor                                            |
 | `decrypt(data, class, field)`                           | Decrypts a value using the field's encryptor                                            |
 | `setEncryptedParameter(qb, param, class, field, value)` | Encrypts a value and sets it as a query parameter                                       |
-| `isValueEncrypted(entity, field)`                       | Reads the raw DB column and checks if it is currently encrypted (additional DBAL query) |
+| `hasEncryptedValue(entity, field)`                      | Reads the raw DB column and checks if it is currently encrypted (additional DBAL query) |
 | `getEntitiesWithEncryption(manager?)`                   | Returns all entity classes that have at least one encrypted field                       |
 
 ## Commands

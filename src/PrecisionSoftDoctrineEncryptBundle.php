@@ -33,7 +33,7 @@ class PrecisionSoftDoctrineEncryptBundle extends Bundle
             return;
         }
 
-        /** @info this is required because of how doctrine instantiates its types. */
+        /** required because of how doctrine instantiates its types */
         /** @var EncryptorFactory $encryptorFactory */
         $encryptorFactory = $this->container->get(EncryptorFactory::class);
 

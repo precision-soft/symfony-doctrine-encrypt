@@ -8,7 +8,6 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Encrypt\Encryptor;
 
-use PrecisionSoft\Doctrine\Encrypt\Exception\Exception;
 use PrecisionSoft\Doctrine\Encrypt\Type\Aes256Type;
 
 class Aes256Encryptor extends AbstractEncryptor
@@ -20,12 +19,6 @@ class Aes256Encryptor extends AbstractEncryptor
 
     protected function generateNonce(string $data): string
     {
-        $ivLength = \openssl_cipher_iv_length(static::ALGORITHM);
-
-        if (false === $ivLength || 0 >= $ivLength) {
-            throw new Exception(\sprintf('failed to get IV length for cipher "%s"', static::ALGORITHM));
-        }
-
-        return \random_bytes($ivLength);
+        return \random_bytes($this->getIvLength());
     }
 }

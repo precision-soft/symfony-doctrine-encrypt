@@ -760,16 +760,16 @@
         },
         {
             "name": "precision-soft/symfony-console",
-            "version": "v4.0.1",
+            "version": "v4.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/precision-soft/symfony-console.git",
-                "reference": "f303bd239917e2c26d25f4b2c2b259baae481ad0"
+                "reference": "bbc9b6c700d3514ff5db26eeb45aee409e43e43c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/precision-soft/symfony-console/zipball/f303bd239917e2c26d25f4b2c2b259baae481ad0",
-                "reference": "f303bd239917e2c26d25f4b2c2b259baae481ad0",
+                "url": "https://api.github.com/repos/precision-soft/symfony-console/zipball/bbc9b6c700d3514ff5db26eeb45aee409e43e43c",
+                "reference": "bbc9b6c700d3514ff5db26eeb45aee409e43e43c",
                 "shasum": ""
             },
             "require": {
@@ -814,9 +814,9 @@
             ],
             "support": {
                 "issues": "https://github.com/precision-soft/symfony-console/issues",
-                "source": "https://github.com/precision-soft/symfony-console/tree/v4.0.1"
+                "source": "https://github.com/precision-soft/symfony-console/tree/v4.1.0"
             },
-            "time": "2026-04-06T06:48:23+00:00"
+            "time": "2026-04-07T14:26:47+00:00"
         },
         {
             "name": "psr/cache",
@@ -3392,16 +3392,16 @@
         },
         {
             "name": "precision-soft/symfony-phpunit",
-            "version": "v3.0.1",
+            "version": "v3.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/precision-soft/symfony-phpunit.git",
-                "reference": "c2b3e33f18bcd3c7ce611e191e7e3f9bfc1f3922"
+                "reference": "dd530c34db1042176203d03c3ee12dde5e0c6ba0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/precision-soft/symfony-phpunit/zipball/c2b3e33f18bcd3c7ce611e191e7e3f9bfc1f3922",
-                "reference": "c2b3e33f18bcd3c7ce611e191e7e3f9bfc1f3922",
+                "url": "https://api.github.com/repos/precision-soft/symfony-phpunit/zipball/dd530c34db1042176203d03c3ee12dde5e0c6ba0",
+                "reference": "dd530c34db1042176203d03c3ee12dde5e0c6ba0",
                 "shasum": ""
             },
             "require": {
@@ -3447,9 +3447,9 @@
             ],
             "support": {
                 "issues": "https://github.com/precision-soft/symfony-phpunit/issues",
-                "source": "https://github.com/precision-soft/symfony-phpunit/tree/v3.0.1"
+                "source": "https://github.com/precision-soft/symfony-phpunit/tree/v3.1.0"
             },
-            "time": "2026-04-06T06:44:20+00:00"
+            "time": "2026-04-07T11:54:31+00:00"
         },
         {
             "name": "react/cache",

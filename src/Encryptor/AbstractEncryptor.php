@@ -22,14 +22,8 @@ abstract class AbstractEncryptor implements EncryptorInterface
     protected const GLUE = "\0";
 
     protected readonly string $nonceKey;
-
     private readonly string $encryptionKey;
-
     private readonly string $macKey;
-
-    abstract public function getTypeClass(): string;
-
-    abstract protected function generateNonce(string $data): string;
 
     public function __construct(
         #[\SensitiveParameter]
@@ -39,15 +33,14 @@ abstract class AbstractEncryptor implements EncryptorInterface
             throw new Exception('invalid encryption salt');
         }
 
-        $this->encryptionKey = self::deriveKey($salt, 'encryption');
-        $this->macKey = self::deriveKey($salt, 'authentication');
-        $this->nonceKey = self::deriveKey($salt, 'nonce');
+        $this->encryptionKey = $this->deriveKey($salt, 'encryption');
+        $this->macKey = $this->deriveKey($salt, 'authentication');
+        $this->nonceKey = $this->deriveKey($salt, 'nonce');
     }
 
-    private static function deriveKey(string $salt, string $info): string
-    {
-        return \hash_hkdf('sha256', $salt, 32, $info);
-    }
+    abstract public function getTypeClass(): string;
+
+    abstract protected function generateNonce(string $data): string;
 
     final public function getTypeName(): string
     {
@@ -147,5 +140,21 @@ abstract class AbstractEncryptor implements EncryptorInterface
         }
 
         return $plaintext;
+    }
+
+    protected function getIvLength(): int
+    {
+        $ivLength = \openssl_cipher_iv_length(static::ALGORITHM);
+
+        if (false === $ivLength || 0 >= $ivLength) {
+            throw new Exception(\sprintf('failed to get IV length for cipher "%s"', static::ALGORITHM));
+        }
+
+        return $ivLength;
+    }
+
+    protected function deriveKey(string $salt, string $info): string
+    {
+        return \hash_hkdf('sha256', $salt, 32, $info);
     }
 }

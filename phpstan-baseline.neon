@@ -31,6 +31,12 @@ parameters:
 			path: src/Dto/EntityMetadataDto.php
 
 		-
+			message: '#^Parameter \#1 \$length of function random_bytes expects int\<1, max\>, int given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Encryptor/Aes256Encryptor.php
+
+		-
 			message: '#^Parameter \#2 \$type of static method Doctrine\\DBAL\\Types\\Type\:\:addType\(\) expects class\-string\<Doctrine\\DBAL\\Types\\Type\>\|Doctrine\\DBAL\\Types\\Type, string given\.$#'
 			identifier: argument.type
 			count: 1

@@ -8,7 +8,6 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Encrypt\Encryptor;
 
-use PrecisionSoft\Doctrine\Encrypt\Exception\Exception;
 use PrecisionSoft\Doctrine\Encrypt\Type\Aes256FixedType;
 
 class Aes256FixedEncryptor extends AbstractEncryptor
@@ -20,14 +19,8 @@ class Aes256FixedEncryptor extends AbstractEncryptor
 
     protected function generateNonce(string $data): string
     {
-        $ivLength = \openssl_cipher_iv_length(static::ALGORITHM);
-
-        if (false === $ivLength || 0 >= $ivLength) {
-            throw new Exception(\sprintf('failed to get IV length for cipher "%s"', static::ALGORITHM));
-        }
-
         $hash = \hash_hmac('sha256', $data, $this->nonceKey, true);
 
-        return \substr($hash, 0, $ivLength);
+        return \substr($hash, 0, $this->getIvLength());
     }
 }
