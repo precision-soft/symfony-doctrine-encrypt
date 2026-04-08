@@ -69,6 +69,97 @@ All notable changes to `precision-soft/symfony-doctrine-encrypt` will be documen
 - Renamed `phpunit.xml` to `phpunit.xml.dist`
 - Quote `$COMPOSER_DEV_MODE` variable in `composer.json` hook script
 
+## [v2.2.4] - 2026-03-21
+
+### Fixed
+
+- README — correct repository clone URL
+
+## [v2.2.3] - 2026-03-19
+
+### Fixed
+
+- README — fix formatting and usage examples
+
+## [v2.2.2] - 2026-03-19
+
+### Fixed
+
+- `AES256FixedEncryptor::generateNonce()` — fix off-by-one nonce generation (cyclic loop was producing incorrect nonce length)
+
+### Changed
+
+- `AbstractEncryptor` — extracted shared `encrypt()` and `decrypt()` logic from `AES256Encryptor` and `AES256FixedEncryptor`; both encryptors now delegate entirely to the base class
+- `AbstractEncryptor::getTypeClass()` declared `abstract`
+- `AbstractEncryptor::generateNonce()` declared `abstract`
+- `AES256Encryptor` / `AES256FixedEncryptor` — removed duplicated encrypt/decrypt/constructor logic; now only implement `getTypeClass()` and `generateNonce()`
+
+## [v2.2.1] - 2026-03-19
+
+### Added
+
+- Test classes: `DatabaseDecryptCommandTest`, `DatabaseEncryptCommandTest`, `EncryptorFactoryTest`, `AES256FixedTypeTest`
+- Expanded `EntityServiceTest` coverage
+
+### Changed
+
+- Renamed `dev/` to `.dev/` for hidden directory convention
+
+## [v2.2.0] - 2026-03-13
+
+### Added
+
+- `Configuration` — `enabled_types` and `encryptors` nodes: allow restricting active encryptors per bundle configuration
+- `FakeEncryptor` — no-op encryptor for use in test environments
+- Test classes: `AES256EncryptorTest`, `AES256FixedEncryptorTest`, `FakeEncryptorTest`, `AES256TypeTest`
+
+### Fixed
+
+- `AbstractDatabaseCommand::getManagerName()` — return `null` when option value is not a string (prevents type error on missing option)
+
+### Changed
+
+- `DatabaseDecryptCommand` / `DatabaseEncryptCommand` — replace `configure()` + `setName()` with `#[AsCommand]` attribute
+- `AbstractDatabaseCommand` — Yoda conditions, descriptive variable names, inline `getManager()` call
+- Code style alignment across all source files (Yoda comparisons, `[] === $x` over `empty($x)`, catch variable naming)
+
+## [v2.1.0] - 2025-01-06
+
+### Changed
+
+- Allow `precision-soft/symfony-console 2.*`
+
+## [v2.0.0] - 2024-11-24
+
+### Added
+
+- Doctrine DBAL 4 support (`doctrine/dbal: ^4.0`)
+
+### Changed
+
+- Constructor property promotion across `AbstractEncryptor`, `AbstractDatabaseCommand`, `EntityService`, `EntityMetadataDto`
+- `AbstractType` — remove space before cast: `(string) $value` → `(string)$value`
+
+## [v1.0.0] - 2024-09-17
+
+Initial release.
+
 [v3.0.1]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v3.0.0...v3.0.1
 
 [v3.0.0]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v2.2.4...v3.0.0
+
+[v2.2.4]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v2.2.3...v2.2.4
+
+[v2.2.3]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v2.2.2...v2.2.3
+
+[v2.2.2]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v2.2.1...v2.2.2
+
+[v2.2.1]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v2.2.0...v2.2.1
+
+[v2.2.0]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v2.1.0...v2.2.0
+
+[v2.1.0]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v2.0.0...v2.1.0
+
+[v2.0.0]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v1.0.0...v2.0.0
+
+[v1.0.0]: https://github.com/precision-soft/symfony-doctrine-encrypt/releases/tag/v1.0.0
