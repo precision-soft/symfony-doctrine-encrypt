@@ -2,6 +2,17 @@
 
 All notable changes to `precision-soft/symfony-doctrine-encrypt` will be documented in this file.
 
+## [v3.0.1] - 2026-04-08
+
+### Fixed
+
+- `Configuration::getConfigTreeBuilder()` — removed duplicate salt length validation (already enforced at runtime by `AbstractEncryptor::MINIMUM_KEY_LENGTH`)
+
+### Changed
+
+- `AbstractEncryptor::getIvLength()` renamed to `getInitialVectorLength()` — zero-abbreviation naming consistency; affects subclasses that override this method
+- `Configuration::getConfigTreeBuilder()` — simplified tree builder, removed redundant chained `->end()` calls on scalar prototype and array nodes
+
 ## [v3.0.0] - 2026-04-07
 
 ### Breaking Changes
@@ -57,5 +68,7 @@ All notable changes to `precision-soft/symfony-doctrine-encrypt` will be documen
 - Standardized `.dev/` infrastructure (Dockerfile, docker-compose, pre-commit, utility.sh, .profile)
 - Renamed `phpunit.xml` to `phpunit.xml.dist`
 - Quote `$COMPOSER_DEV_MODE` variable in `composer.json` hook script
+
+[v3.0.1]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v3.0.0...v3.0.1
 
 [v3.0.0]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v2.2.4...v3.0.0

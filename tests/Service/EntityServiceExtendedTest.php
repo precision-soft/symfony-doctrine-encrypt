@@ -253,10 +253,10 @@ final class EntityServiceExtendedTest extends TestCase
             ->with($entity)
             ->andReturn($identifiers);
 
-        foreach ($identifiers as $idField => $idValue) {
+        foreach ($identifiers as $identifierField => $identifierValue) {
             $ormClassMetadata->shouldReceive('getColumnName')
-                ->with($idField)
-                ->andReturn($idField);
+                ->with($identifierField)
+                ->andReturn($identifierField);
         }
 
         $result = Mockery::mock(Result::class);

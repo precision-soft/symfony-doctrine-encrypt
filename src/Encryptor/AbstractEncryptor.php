@@ -142,15 +142,15 @@ abstract class AbstractEncryptor implements EncryptorInterface
         return $plaintext;
     }
 
-    protected function getIvLength(): int
+    protected function getInitialVectorLength(): int
     {
-        $ivLength = \openssl_cipher_iv_length(static::ALGORITHM);
+        $initialVectorLength = \openssl_cipher_iv_length(static::ALGORITHM);
 
-        if (false === $ivLength || 0 >= $ivLength) {
+        if (false === $initialVectorLength || 0 >= $initialVectorLength) {
             throw new Exception(\sprintf('failed to get IV length for cipher "%s"', static::ALGORITHM));
         }
 
-        return $ivLength;
+        return $initialVectorLength;
     }
 
     protected function deriveKey(string $salt, string $info): string

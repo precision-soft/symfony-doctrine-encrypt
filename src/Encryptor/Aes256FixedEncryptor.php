@@ -21,6 +21,6 @@ class Aes256FixedEncryptor extends AbstractEncryptor
     {
         $hash = \hash_hmac('sha256', $data, $this->nonceKey, true);
 
-        return \substr($hash, 0, $this->getIvLength());
+        return \substr($hash, 0, $this->getInitialVectorLength());
     }
 }

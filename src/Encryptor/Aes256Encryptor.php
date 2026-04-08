@@ -19,6 +19,6 @@ class Aes256Encryptor extends AbstractEncryptor
 
     protected function generateNonce(string $data): string
     {
-        return \random_bytes($this->getIvLength());
+        return \random_bytes($this->getInitialVectorLength());
     }
 }
