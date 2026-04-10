@@ -2,6 +2,26 @@
 
 All notable changes to `precision-soft/symfony-doctrine-encrypt` will be documented in this file.
 
+## [v3.0.2] - 2026-04-10
+
+### Fixed
+
+- `EntityService::hasEncryptedValue()` — marker check now includes null-byte glue (`ENCRYPTION_MARKER . GLUE`), fixing false positives when a plaintext value starts with `<ENC>`
+- `AbstractDatabaseCommand::processEntities()` — add `is_numeric()` guard on COUNT query result; throw `RuntimeException` on non-numeric result
+- `AbstractDatabaseCommand::processEntities()` — move encryptor swap/restore outside the batch loop into a single `finally` block; prevents premature restore after each batch iteration
+- `DatabaseDecryptCommand` / `DatabaseEncryptCommand` — catch `Throwable` instead of `Exception` to capture all errors, including `RuntimeException`
+
+### Added
+
+- `AbstractEncryptor::__debugInfo()` — returns only algorithm name, preventing sensitive key material from leaking in debug/dump output
+- `AbstractEncryptor::$initialVectorLengthCache` — caches `openssl_cipher_iv_length()` result to avoid repeated calls per encrypt/decrypt operation
+
+### Changed
+
+- `AbstractEncryptor::GLUE` — visibility widened from `protected` to `public`; accessible to `EntityService` and external code without class extension
+- `EncryptorFactory` — PHPDoc `@param string[]` → `@param class-string[]` for `$enabledEncryptors`
+- `composer.lock` — bumped `precision-soft/symfony-console` to `v4.1.2`, `precision-soft/symfony-phpunit` to `v3.1.1`
+
 ## [v3.0.1] - 2026-04-08
 
 ### Fixed
@@ -143,6 +163,8 @@ All notable changes to `precision-soft/symfony-doctrine-encrypt` will be documen
 ## [v1.0.0] - 2024-09-17
 
 Initial release.
+
+[v3.0.2]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v3.0.1...v3.0.2
 
 [v3.0.1]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v3.0.0...v3.0.1
 

@@ -15,15 +15,20 @@ use PrecisionSoft\Doctrine\Encrypt\Type\AbstractType;
 abstract class AbstractEncryptor implements EncryptorInterface
 {
     public const ENCRYPTION_MARKER = '<ENC>';
+    public const GLUE = "\0";
 
     protected const ALGORITHM = 'AES-256-CTR';
     protected const HASH_ALGORITHM = 'sha256';
     protected const MINIMUM_KEY_LENGTH = 32;
-    protected const GLUE = "\0";
 
     protected readonly string $nonceKey;
     private readonly string $encryptionKey;
     private readonly string $macKey;
+    private ?int $initialVectorLengthCache = null;
+
+    abstract public function getTypeClass(): string;
+
+    abstract protected function generateNonce(string $data): string;
 
     public function __construct(
         #[\SensitiveParameter]
@@ -37,10 +42,6 @@ abstract class AbstractEncryptor implements EncryptorInterface
         $this->macKey = $this->deriveKey($salt, 'authentication');
         $this->nonceKey = $this->deriveKey($salt, 'nonce');
     }
-
-    abstract public function getTypeClass(): string;
-
-    abstract protected function generateNonce(string $data): string;
 
     final public function getTypeName(): string
     {
@@ -142,15 +143,24 @@ abstract class AbstractEncryptor implements EncryptorInterface
         return $plaintext;
     }
 
+    public function __debugInfo(): array
+    {
+        return ['algorithm' => static::ALGORITHM];
+    }
+
     protected function getInitialVectorLength(): int
     {
+        if (null !== $this->initialVectorLengthCache) {
+            return $this->initialVectorLengthCache;
+        }
+
         $initialVectorLength = \openssl_cipher_iv_length(static::ALGORITHM);
 
         if (false === $initialVectorLength || 0 >= $initialVectorLength) {
             throw new Exception(\sprintf('failed to get IV length for cipher "%s"', static::ALGORITHM));
         }
 
-        return $initialVectorLength;
+        return $this->initialVectorLengthCache = $initialVectorLength;
     }
 
     protected function deriveKey(string $salt, string $info): string

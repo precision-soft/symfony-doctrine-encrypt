@@ -8,11 +8,11 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Encrypt\Command;
 
-use PrecisionSoft\Doctrine\Encrypt\Exception\Exception;
 use PrecisionSoft\Doctrine\Encrypt\Exception\StopException;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+use Throwable;
 
 #[AsCommand(name: self::NAME)]
 class DatabaseEncryptCommand extends AbstractDatabaseCommand
@@ -39,8 +39,8 @@ class DatabaseEncryptCommand extends AbstractDatabaseCommand
 
             $this->success('encryption finished');
         } catch (StopException) {
-        } catch (Exception $exception) {
-            $this->error($exception->getMessage(), $exception);
+        } catch (Throwable $throwable) {
+            $this->error($throwable->getMessage(), $throwable);
 
             return static::FAILURE;
         }

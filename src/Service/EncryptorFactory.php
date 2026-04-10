@@ -30,7 +30,7 @@ class EncryptorFactory
 
     /**
      * @param iterable<EncryptorInterface> $encryptors
-     * @param string[] $enabledEncryptors
+     * @param class-string[] $enabledEncryptors
      */
     public function __construct(
         iterable $encryptors,

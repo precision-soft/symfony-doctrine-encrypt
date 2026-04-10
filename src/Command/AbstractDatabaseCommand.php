@@ -76,69 +76,75 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
             ->getQuery()
             ->getSingleScalarResult();
 
+        if (false === \is_numeric($total)) {
+            throw new \RuntimeException('COUNT query returned non-numeric result');
+        }
+
         $progressBar = new ProgressBar($this->output, (int)$total);
         $lastIdentifierValues = null;
 
-        do {
-            $entityManager = $this->getManager();
-            /** @var UnitOfWork $unitOfWork */
-            $unitOfWork = $entityManager->getUnitOfWork();
+        $resetEncryptors = true === $useFakeEncryptors
+            ? $this->resetEncryptorsToFake($entityMetadataDto->getEncryptionFields())
+            : null;
 
-            /** @var EntityRepository $repository */
-            $repository = $entityManager->getRepository($className);
+        try {
+            do {
+                $entityManager = $this->getManager();
+                /** @var UnitOfWork $unitOfWork */
+                $unitOfWork = $entityManager->getUnitOfWork();
 
-            $queryBuilder = $repository->createQueryBuilder('e')
-                ->select('e');
+                /** @var EntityRepository $repository */
+                $repository = $entityManager->getRepository($className);
 
-            foreach ($identifierFieldNames as $identifierFieldName) {
-                $queryBuilder->addOrderBy('e.' . $identifierFieldName, 'ASC');
-            }
+                $queryBuilder = $repository->createQueryBuilder('e')
+                    ->select('e');
 
-            $queryBuilder->setMaxResults(50);
+                foreach ($identifierFieldNames as $identifierFieldName) {
+                    $queryBuilder->addOrderBy('e.' . $identifierFieldName, 'ASC');
+                }
 
-            if (null !== $lastIdentifierValues) {
-                $this->applyKeysetPagination($queryBuilder, $identifierFieldNames, $lastIdentifierValues);
-            }
+                $queryBuilder->setMaxResults(50);
 
-            $entities = $queryBuilder->getQuery()->getResult();
+                if (null !== $lastIdentifierValues) {
+                    $this->applyKeysetPagination($queryBuilder, $identifierFieldNames, $lastIdentifierValues);
+                }
 
-            if ([] === $entities) {
-                break;
-            }
+                $entities = $queryBuilder->getQuery()->getResult();
 
-            $resetEncryptors = true === $useFakeEncryptors
-                ? $this->resetEncryptorsToFake($entityMetadataDto->getEncryptionFields())
-                : null;
+                if ([] === $entities) {
+                    break;
+                }
 
-            try {
-                foreach ($entities as $entity) {
-                    $lastIdentifierValues = $entityMetadataDto->getClassMetadata()->getIdentifierValues($entity);
+                try {
+                    foreach ($entities as $entity) {
+                        $lastIdentifierValues = $entityMetadataDto->getClassMetadata()->getIdentifierValues($entity);
 
-                    $originalEntityData = $unitOfWork->getOriginalEntityData($entity);
+                        $originalEntityData = $unitOfWork->getOriginalEntityData($entity);
 
-                    foreach ($entityMetadataDto->getEncryptionFields() as $fieldName => $typeName) {
-                        $originalEntityData[$fieldName] = null;
+                        foreach ($entityMetadataDto->getEncryptionFields() as $fieldName => $typeName) {
+                            $originalEntityData[$fieldName] = null;
+                        }
+
+                        $unitOfWork->setOriginalEntityData($entity, $originalEntityData);
+                        $entityManager->persist($entity);
+                        $progressBar->advance();
                     }
 
-                    $unitOfWork->setOriginalEntityData($entity, $originalEntityData);
-                    $entityManager->persist($entity);
-                    $progressBar->advance();
+                    $entityManager->flush();
+                } catch (Throwable $throwable) {
+                    $this->managerRegistry->resetManager($this->getManagerName());
+
+                    throw $throwable;
                 }
 
-                $entityManager->flush();
-            } catch (Throwable $throwable) {
-                $this->managerRegistry->resetManager($this->getManagerName());
-
-                throw $throwable;
-            } finally {
-                if (null !== $resetEncryptors) {
-                    $this->restoreEncryptors($resetEncryptors);
-                }
+                $entityManager->clear();
+                \gc_collect_cycles();
+            } while (true);
+        } finally {
+            if (null !== $resetEncryptors) {
+                $this->restoreEncryptors($resetEncryptors);
             }
-
-            $entityManager->clear();
-            \gc_collect_cycles();
-        } while (true);
+        }
 
         $progressBar->finish();
         $this->writeln('');

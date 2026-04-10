@@ -141,7 +141,7 @@ class EntityService
             return false;
         }
 
-        return true === \str_starts_with($rawValue, AbstractEncryptor::ENCRYPTION_MARKER);
+        return true === \str_starts_with($rawValue, AbstractEncryptor::ENCRYPTION_MARKER . AbstractEncryptor::GLUE);
     }
 
     /**
