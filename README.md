@@ -1,5 +1,10 @@
 # Symfony Doctrine Encrypt Bundle
 
+[![PHP >= 8.2](https://img.shields.io/badge/php-%3E%3D8.2-8892BF)](https://www.php.net/)
+[![PHPStan Level 8](https://img.shields.io/badge/phpstan-level%208-brightgreen)](https://phpstan.org/)
+[![Code Style PER-CS2.0](https://img.shields.io/badge/code%20style-PER--CS2.0-blue)](https://www.php-fig.org/per/coding-style/)
+[![License MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
 Symfony bundle for transparent AES-256 field-level encryption of Doctrine ORM entity fields via custom Doctrine types.
 
 **You may fork and modify it as you wish. Contributions are welcomed.**
@@ -220,11 +225,13 @@ When using the `encryptors` configuration key, list only your custom encryptor c
 
 ## Dev
 
+The development environment uses Docker. The `./dc` script is a Docker Compose wrapper located in `.dev/`.
+
 ```shell
 git clone git@github.com:precision-soft/symfony-doctrine-encrypt.git
 cd symfony-doctrine-encrypt
-composer install
-vendor/bin/phpunit
+
+./dc build && ./dc up -d
 ```
 
 ## Todo
