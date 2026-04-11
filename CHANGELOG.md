@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- `AbstractDatabaseCommand::processEntities()` — throw project `Exception` instead of generic `\RuntimeException`
+
+### Changed
+
+- `AbstractEncryptor` — `$mac` renamed to `$messageAuthenticationCode`; `$info` parameter renamed to `$information`
+- `EncryptorFactory::getType()` — `$dbalType` renamed to `$type`
+- `AbstractType` — removed `final` from `getFullName()`, `getEncryptor()`, `setEncryptor()`, `convertToDatabaseValue()`, `convertToPHPValue()`
+- `FakeEncryptor` — removed `final` modifier
+- `StopException` — removed `final` modifier
+- 2 Mockery-based test classes migrated to `AbstractTestCase` (EntityServiceExtendedTest, AbstractDatabaseCommandTest)
+
 ## [v3.0.2] - 2026-04-10
 
 ### Fixed

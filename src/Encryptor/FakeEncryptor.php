@@ -13,7 +13,7 @@ use PrecisionSoft\Doctrine\Encrypt\Contract\EncryptorInterface;
 /**
  * @internal
  */
-final class FakeEncryptor implements EncryptorInterface
+class FakeEncryptor implements EncryptorInterface
 {
     public function getTypeClass(): ?string
     {

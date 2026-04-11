@@ -109,14 +109,14 @@ class EncryptorFactory
             throw new TypeNotFoundException(\sprintf('no type found for `%s`', $typeName));
         }
 
-        $dbalType = Type::getType($typeName);
+        $type = Type::getType($typeName);
 
-        if (false === ($dbalType instanceof AbstractType)) {
+        if (false === ($type instanceof AbstractType)) {
             throw new Exception(
                 \sprintf('the encrypted type must extend `%s`', AbstractType::class),
             );
         }
 
-        return $dbalType;
+        return $type;
     }
 }

@@ -13,4 +13,4 @@ namespace PrecisionSoft\Doctrine\Encrypt\Exception;
  *
  * @internal
  */
-final class StopException extends Exception {}
+class StopException extends Exception {}

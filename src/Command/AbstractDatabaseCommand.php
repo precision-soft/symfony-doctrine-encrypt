@@ -16,6 +16,7 @@ use Doctrine\Persistence\ObjectManager;
 use PrecisionSoft\Doctrine\Encrypt\Contract\EncryptorInterface;
 use PrecisionSoft\Doctrine\Encrypt\Dto\EntityMetadataDto;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\FakeEncryptor;
+use PrecisionSoft\Doctrine\Encrypt\Exception\Exception;
 use PrecisionSoft\Doctrine\Encrypt\Exception\StopException;
 use PrecisionSoft\Doctrine\Encrypt\Service\EncryptorFactory;
 use PrecisionSoft\Doctrine\Encrypt\Service\EntityService;
@@ -77,7 +78,7 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
             ->getSingleScalarResult();
 
         if (false === \is_numeric($total)) {
-            throw new \RuntimeException('COUNT query returned non-numeric result');
+            throw new Exception('count query returned non-numeric result');
         }
 
         $progressBar = new ProgressBar($this->output, (int)$total);

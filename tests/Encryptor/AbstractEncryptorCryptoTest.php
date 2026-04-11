@@ -49,7 +49,7 @@ final class AbstractEncryptorCryptoTest extends TestCase
         static::assertNotSame($encryptedA, $encryptedB);
 
         $this->expectException(Exception::class);
-        $this->expectExceptionMessage('invalid mac');
+        $this->expectExceptionMessage('invalid message authentication code');
 
         $secondAes256FixedEncryptor->decrypt($encryptedA);
     }
@@ -83,7 +83,7 @@ final class AbstractEncryptorCryptoTest extends TestCase
         $tampered = \implode("\0", $parts);
 
         $this->expectException(Exception::class);
-        $this->expectExceptionMessage('invalid mac');
+        $this->expectExceptionMessage('invalid message authentication code');
 
         $aes256Encryptor->decrypt($tampered);
     }
@@ -100,7 +100,7 @@ final class AbstractEncryptorCryptoTest extends TestCase
         $tampered = \implode("\0", $parts);
 
         $this->expectException(Exception::class);
-        $this->expectExceptionMessage('invalid mac');
+        $this->expectExceptionMessage('invalid message authentication code');
 
         $aes256Encryptor->decrypt($tampered);
     }
@@ -115,7 +115,7 @@ final class AbstractEncryptorCryptoTest extends TestCase
         $tampered = \implode("\0", $parts);
 
         $this->expectException(Exception::class);
-        $this->expectExceptionMessage('invalid mac');
+        $this->expectExceptionMessage('invalid message authentication code');
 
         $aes256Encryptor->decrypt($tampered);
     }
@@ -181,7 +181,7 @@ final class AbstractEncryptorCryptoTest extends TestCase
         $aes256Encryptor = new Aes256Encryptor(self::SALT);
 
         $this->expectException(Exception::class);
-        $this->expectExceptionMessage('could not validate mac');
+        $this->expectExceptionMessage('could not validate message authentication code');
 
         $aes256Encryptor->decrypt(
             AbstractEncryptor::ENCRYPTION_MARKER . "\0" .

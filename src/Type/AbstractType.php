@@ -21,7 +21,7 @@ abstract class AbstractType extends StringType
 
     abstract protected static function getShortName(): string;
 
-    final public static function getFullName(): string
+    public static function getFullName(): string
     {
         return 'encrypted' . static::getShortName();
     }
@@ -35,21 +35,21 @@ abstract class AbstractType extends StringType
         return parent::getSQLDeclaration($column, $platform);
     }
 
-    final public function getEncryptor(): EncryptorInterface
+    public function getEncryptor(): EncryptorInterface
     {
         $this->validate();
 
         return $this->encryptor;
     }
 
-    final public function setEncryptor(EncryptorInterface $encryptor): self
+    public function setEncryptor(EncryptorInterface $encryptor): self
     {
         $this->encryptor = $encryptor;
 
         return $this;
     }
 
-    final public function convertToDatabaseValue($value, AbstractPlatform $platform): ?string
+    public function convertToDatabaseValue($value, AbstractPlatform $platform): ?string
     {
         $this->validate();
 
@@ -64,7 +64,7 @@ abstract class AbstractType extends StringType
         return $this->encryptor->encrypt($value);
     }
 
-    final public function convertToPHPValue($value, AbstractPlatform $platform): ?string
+    public function convertToPHPValue($value, AbstractPlatform $platform): ?string
     {
         $this->validate();
 

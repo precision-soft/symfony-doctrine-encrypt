@@ -71,7 +71,7 @@ final class Aes256EncryptorTest extends TestCase
         $tampered = \implode("\0", $parts);
 
         $this->expectException(Exception::class);
-        $this->expectExceptionMessage('invalid mac');
+        $this->expectExceptionMessage('invalid message authentication code');
 
         $this->aes256Encryptor->decrypt($tampered);
     }

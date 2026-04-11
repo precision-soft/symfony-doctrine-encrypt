@@ -83,14 +83,14 @@ abstract class AbstractEncryptor implements EncryptorInterface
             throw new Exception('could not encrypt plaintext');
         }
 
-        $mac = \hash_hmac(static::HASH_ALGORITHM, static::ALGORITHM . $ciphertext . $nonce, $this->macKey, true);
+        $messageAuthenticationCode = \hash_hmac(static::HASH_ALGORITHM, static::ALGORITHM . $ciphertext . $nonce, $this->macKey, true);
 
         return \implode(
             static::GLUE,
             [
                 self::ENCRYPTION_MARKER,
                 \base64_encode($ciphertext),
-                \base64_encode($mac),
+                \base64_encode($messageAuthenticationCode),
                 \base64_encode($nonce),
             ],
         );
@@ -108,14 +108,14 @@ abstract class AbstractEncryptor implements EncryptorInterface
             throw new Exception('could not validate ciphertext');
         }
 
-        [, $ciphertext, $mac, $nonce] = $encryptedParts;
+        [, $ciphertext, $messageAuthenticationCode, $nonce] = $encryptedParts;
 
         if (false === ($ciphertext = \base64_decode($ciphertext, true))) {
             throw new Exception('could not validate ciphertext');
         }
 
-        if (false === ($mac = \base64_decode($mac, true))) {
-            throw new Exception('could not validate mac');
+        if (false === ($messageAuthenticationCode = \base64_decode($messageAuthenticationCode, true))) {
+            throw new Exception('could not validate message authentication code');
         }
 
         if (false === ($nonce = \base64_decode($nonce, true))) {
@@ -124,8 +124,8 @@ abstract class AbstractEncryptor implements EncryptorInterface
 
         $expected = \hash_hmac(static::HASH_ALGORITHM, static::ALGORITHM . $ciphertext . $nonce, $this->macKey, true);
 
-        if (false === \hash_equals($expected, $mac)) {
-            throw new Exception('invalid mac');
+        if (false === \hash_equals($expected, $messageAuthenticationCode)) {
+            throw new Exception('invalid message authentication code');
         }
 
         $plaintext = \openssl_decrypt(
@@ -163,8 +163,8 @@ abstract class AbstractEncryptor implements EncryptorInterface
         return $this->initialVectorLengthCache = $initialVectorLength;
     }
 
-    protected function deriveKey(string $salt, string $info): string
+    protected function deriveKey(string $salt, string $information): string
     {
-        return \hash_hkdf('sha256', $salt, 32, $info);
+        return \hash_hkdf('sha256', $salt, 32, $information);
     }
 }

@@ -16,8 +16,8 @@ use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\Persistence\Mapping\ClassMetadata;
 use Doctrine\Persistence\ObjectManager;
 use Mockery;
-use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
-use PHPUnit\Framework\TestCase;
+use PrecisionSoft\Symfony\Phpunit\MockDto;
+use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
 use PrecisionSoft\Doctrine\Encrypt\Command\DatabaseEncryptCommand;
 use PrecisionSoft\Doctrine\Encrypt\Dto\EntityMetadataDto;
 use PrecisionSoft\Doctrine\Encrypt\Exception\Exception;
@@ -26,11 +26,15 @@ use PrecisionSoft\Doctrine\Encrypt\Service\EntityService;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
+use stdClass;
 
 /** @internal */
-final class AbstractDatabaseCommandTest extends TestCase
+final class AbstractDatabaseCommandTest extends AbstractTestCase
 {
-    use MockeryPHPUnitIntegration;
+    public static function getMockDto(): MockDto
+    {
+        return new MockDto(stdClass::class);
+    }
 
     public function testApplyKeysetPaginationSingleIdentifier(): void
     {
@@ -86,8 +90,8 @@ final class AbstractDatabaseCommandTest extends TestCase
 
     public function testProcessEntitiesWithSingleEntityBatch(): void
     {
-        $entity = new \stdClass();
-        $className = \stdClass::class;
+        $entity = new stdClass();
+        $className = stdClass::class;
 
         $classMetadata = Mockery::mock(ClassMetadata::class);
         $classMetadata->shouldReceive('getName')->andReturn($className);
@@ -162,8 +166,8 @@ final class AbstractDatabaseCommandTest extends TestCase
 
     public function testProcessEntitiesExceptionResetsManager(): void
     {
-        $entity = new \stdClass();
-        $className = \stdClass::class;
+        $entity = new stdClass();
+        $className = stdClass::class;
 
         $classMetadata = Mockery::mock(ClassMetadata::class);
         $classMetadata->shouldReceive('getName')->andReturn($className);

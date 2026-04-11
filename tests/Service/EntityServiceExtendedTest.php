@@ -18,9 +18,9 @@ use Doctrine\ORM\QueryBuilder as OrmQueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\Persistence\Mapping\ClassMetadata;
 use Mockery;
-use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
 use Mockery\MockInterface;
-use PHPUnit\Framework\TestCase;
+use PrecisionSoft\Symfony\Phpunit\MockDto;
+use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256Encryptor;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256FixedEncryptor;
 use PrecisionSoft\Doctrine\Encrypt\Service\EncryptorFactory;
@@ -29,9 +29,12 @@ use PrecisionSoft\Doctrine\Encrypt\Type\Aes256FixedType;
 use stdClass;
 
 /** @internal */
-final class EntityServiceExtendedTest extends TestCase
+final class EntityServiceExtendedTest extends AbstractTestCase
 {
-    use MockeryPHPUnitIntegration;
+    public static function getMockDto(): MockDto
+    {
+        return new MockDto(stdClass::class);
+    }
 
     private string $salt;
     private Aes256Encryptor $aes256Encryptor;
