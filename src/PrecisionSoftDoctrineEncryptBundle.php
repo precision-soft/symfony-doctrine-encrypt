@@ -27,7 +27,7 @@ class PrecisionSoftDoctrineEncryptBundle extends Bundle
         $this->registerTypes();
     }
 
-    private function registerTypes(): void
+    protected function registerTypes(): void
     {
         if (null === $this->container) {
             return;

@@ -166,7 +166,7 @@ class EntityService
     /**
      * @return array<string, string>
      */
-    private function getEncryptedFields(
+    protected function getEncryptedFields(
         string $class,
         ?string $managerName = null,
     ): array {
@@ -179,7 +179,7 @@ class EntityService
     /**
      * @return array<string, string>
      */
-    private function getFieldsForClassMetadata(ClassMetadata $classMetadata): array
+    protected function getFieldsForClassMetadata(ClassMetadata $classMetadata): array
     {
         $encryptedTypes = $this->encryptorFactory->getTypeNames();
         $encryptionFields = [];

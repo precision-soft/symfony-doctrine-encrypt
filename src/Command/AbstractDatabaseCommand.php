@@ -226,7 +226,7 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
      *
      * @return array<string, EncryptorInterface>
      */
-    private function resetEncryptorsToFake(array $encryptionFields): array
+    protected function resetEncryptorsToFake(array $encryptionFields): array
     {
         $resetEncryptors = [];
 
@@ -249,7 +249,7 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
     /**
      * @param array<string, EncryptorInterface> $resetEncryptors
      */
-    private function restoreEncryptors(array $resetEncryptors): void
+    protected function restoreEncryptors(array $resetEncryptors): void
     {
         foreach ($resetEncryptors as $typeName => $encryptor) {
             $abstractType = $this->encryptorFactory->getType($typeName);
@@ -260,7 +260,7 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
     /**
      * @param string[] $questionParts
      */
-    private function getQuestionText(array $questionParts): string
+    protected function getQuestionText(array $questionParts): string
     {
         $maxLength = 0;
 

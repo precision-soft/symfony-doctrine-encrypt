@@ -34,7 +34,7 @@ abstract class AbstractEncryptor implements EncryptorInterface
         #[\SensitiveParameter]
         protected readonly string $salt,
     ) {
-        if (static::MINIMUM_KEY_LENGTH > \strlen($salt)) {
+        if (\strlen($salt) < static::MINIMUM_KEY_LENGTH) {
             throw new Exception('invalid encryption salt');
         }
 
@@ -43,7 +43,7 @@ abstract class AbstractEncryptor implements EncryptorInterface
         $this->nonceKey = $this->deriveKey($salt, 'nonce');
     }
 
-    final public function getTypeName(): string
+    public function getTypeName(): string
     {
         $typeClass = $this->getTypeClass();
 
@@ -156,7 +156,7 @@ abstract class AbstractEncryptor implements EncryptorInterface
 
         $initialVectorLength = \openssl_cipher_iv_length(static::ALGORITHM);
 
-        if (false === $initialVectorLength || 0 >= $initialVectorLength) {
+        if (false === $initialVectorLength || $initialVectorLength <= 0) {
             throw new Exception(\sprintf('failed to get IV length for cipher "%s"', static::ALGORITHM));
         }
 

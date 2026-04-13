@@ -7,17 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v3.1.0] - 2026-04-12
+
 ### Fixed
 
 - `AbstractDatabaseCommand::processEntities()` — throw project `Exception` instead of generic `\RuntimeException`
+- `AbstractEncryptor` — Yoda condition on `>` operator corrected (`static::MINIMUM_KEY_LENGTH > \strlen($salt)` → `\strlen($salt) < static::MINIMUM_KEY_LENGTH`)
+- `AbstractEncryptor` — Yoda condition on `>=` operator corrected (`0 >= $initialVectorLength` → `$initialVectorLength <= 0`)
 
 ### Changed
 
 - `AbstractEncryptor` — `$mac` renamed to `$messageAuthenticationCode`; `$info` parameter renamed to `$information`
+- `AbstractEncryptor` — removed `final` from `getTypeName()`
+- `AbstractEncryptor` — `resetEncryptorsToFake()`, `restoreEncryptors()`, `getQuestionText()` visibility widened from `private` to `protected`
 - `EncryptorFactory::getType()` — `$dbalType` renamed to `$type`
 - `AbstractType` — removed `final` from `getFullName()`, `getEncryptor()`, `setEncryptor()`, `convertToDatabaseValue()`, `convertToPHPValue()`
+- `AbstractType` — `validate()` visibility widened from `private` to `protected`
 - `FakeEncryptor` — removed `final` modifier
 - `StopException` — removed `final` modifier
+- `PrecisionSoftDoctrineEncryptBundle` — `registerTypes()` visibility widened from `private` to `protected`
+- `EntityService` — `getEncryptedFields()`, `getFieldsForClassMetadata()` visibility widened from `private` to `protected`
 - 2 Mockery-based test classes migrated to `AbstractTestCase` (EntityServiceExtendedTest, AbstractDatabaseCommandTest)
 
 ## [v3.0.2] - 2026-04-10
@@ -181,6 +190,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v1.0.0] - 2024-09-17
 
 Initial release.
+
+[v3.1.0]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v3.0.2...v3.1.0
 
 [v3.0.2]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v3.0.1...v3.0.2
 
