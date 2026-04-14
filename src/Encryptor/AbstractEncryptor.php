@@ -43,6 +43,11 @@ abstract class AbstractEncryptor implements EncryptorInterface
         $this->nonceKey = $this->deriveKey($salt, 'nonce');
     }
 
+    public function __debugInfo(): array
+    {
+        return ['algorithm' => static::ALGORITHM];
+    }
+
     public function getTypeName(): string
     {
         $typeClass = $this->getTypeClass();
@@ -141,11 +146,6 @@ abstract class AbstractEncryptor implements EncryptorInterface
         }
 
         return $plaintext;
-    }
-
-    public function __debugInfo(): array
-    {
-        return ['algorithm' => static::ALGORITHM];
     }
 
     protected function getInitialVectorLength(): int

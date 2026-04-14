@@ -8,11 +8,9 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Encrypt\Command;
 
-use PrecisionSoft\Doctrine\Encrypt\Exception\StopException;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-use Throwable;
 
 #[AsCommand(name: self::NAME)]
 class DatabaseDecryptCommand extends AbstractDatabaseCommand
@@ -21,30 +19,6 @@ class DatabaseDecryptCommand extends AbstractDatabaseCommand
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        try {
-            $entitiesWithEncryption = $this->entityService->getEntitiesWithEncryption($this->getManagerName());
-
-            if ([] === $entitiesWithEncryption) {
-                $this->warning('no entities found to decrypt');
-
-                throw new StopException();
-            }
-
-            $this->askForConfirmation($entitiesWithEncryption);
-            $this->warning('decrypting all the fields can take up to several minutes depending on the database size');
-
-            foreach ($entitiesWithEncryption as $entityMetadataDto) {
-                $this->processEntities($entityMetadataDto, 'DECRYPT', true);
-            }
-
-            $this->success('decryption finished');
-        } catch (StopException) {
-        } catch (Throwable $throwable) {
-            $this->error($throwable->getMessage(), $throwable);
-
-            return static::FAILURE;
-        }
-
-        return static::SUCCESS;
+        return $this->executeOperation(true);
     }
 }

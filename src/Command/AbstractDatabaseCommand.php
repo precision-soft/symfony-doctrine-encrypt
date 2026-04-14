@@ -29,6 +29,7 @@ use Throwable;
 abstract class AbstractDatabaseCommand extends AbstractCommand
 {
     protected const OPTION_MANAGER = 'manager';
+    private const BATCH_SIZE = 50;
 
     public function __construct(
         protected readonly ManagerRegistry $managerRegistry,
@@ -55,6 +56,38 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
     protected function getManager(): ObjectManager
     {
         return $this->managerRegistry->getManager($this->getManagerName());
+    }
+
+    protected function executeOperation(bool $decrypt): int
+    {
+        $direction = true === $decrypt ? 'decrypt' : 'encrypt';
+        $sectionLabel = true === $decrypt ? 'DECRYPT' : 'ENCRYPT';
+
+        try {
+            $entitiesWithEncryption = $this->entityService->getEntitiesWithEncryption($this->getManagerName());
+
+            if ([] === $entitiesWithEncryption) {
+                $this->warning(\sprintf('no entities found to %s', $direction));
+
+                throw new StopException();
+            }
+
+            $this->askForConfirmation($entitiesWithEncryption);
+            $this->warning(\sprintf('%sing all the fields can take up to several minutes depending on the database size', $direction));
+
+            foreach ($entitiesWithEncryption as $entityMetadataDto) {
+                $this->processEntities($entityMetadataDto, $sectionLabel, $decrypt);
+            }
+
+            $this->success(\sprintf('%sion finished', $direction));
+        } catch (StopException) {
+        } catch (Throwable $throwable) {
+            $this->error($throwable->getMessage(), $throwable);
+
+            return static::FAILURE;
+        }
+
+        return static::SUCCESS;
     }
 
     protected function processEntities(
@@ -104,7 +137,7 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
                     $queryBuilder->addOrderBy('e.' . $identifierFieldName, 'ASC');
                 }
 
-                $queryBuilder->setMaxResults(50);
+                $queryBuilder->setMaxResults(self::BATCH_SIZE);
 
                 if (null !== $lastIdentifierValues) {
                     $this->applyKeysetPagination($queryBuilder, $identifierFieldNames, $lastIdentifierValues);

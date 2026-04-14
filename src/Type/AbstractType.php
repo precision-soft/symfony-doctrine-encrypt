@@ -17,7 +17,7 @@ abstract class AbstractType extends StringType
 {
     private const DEFAULT_LENGTH = 1000;
 
-    private EncryptorInterface $encryptor;
+    private ?EncryptorInterface $encryptor = null;
 
     abstract protected static function getShortName(): string;
 
@@ -39,6 +39,8 @@ abstract class AbstractType extends StringType
     {
         $this->validate();
 
+        \assert(null !== $this->encryptor);
+
         return $this->encryptor;
     }
 
@@ -51,8 +53,6 @@ abstract class AbstractType extends StringType
 
     public function convertToDatabaseValue($value, AbstractPlatform $platform): ?string
     {
-        $this->validate();
-
         if (null === $value) {
             return null;
         }
@@ -61,13 +61,11 @@ abstract class AbstractType extends StringType
             throw new Exception(\sprintf('expected string value for encryption, got `%s`', \get_debug_type($value)));
         }
 
-        return $this->encryptor->encrypt($value);
+        return $this->getEncryptor()->encrypt($value);
     }
 
     public function convertToPHPValue($value, AbstractPlatform $platform): ?string
     {
-        $this->validate();
-
         if (null === $value) {
             return null;
         }
@@ -76,12 +74,12 @@ abstract class AbstractType extends StringType
             throw new Exception(\sprintf('expected string value for decryption, got `%s`', \get_debug_type($value)));
         }
 
-        return $this->encryptor->decrypt($value);
+        return $this->getEncryptor()->decrypt($value);
     }
 
     protected function validate(): void
     {
-        if (false === isset($this->encryptor)) {
+        if (null === $this->encryptor) {
             throw new Exception('the encryptor was not set');
         }
     }

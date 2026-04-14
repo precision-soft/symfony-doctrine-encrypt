@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v3.1.1] - 2026-04-14
+
+### Changed
+
+- `AbstractDatabaseCommand::executeOperation()` — new template method consolidating the duplicated try/catch, confirmation prompt, and iteration loop previously repeated in `DatabaseDecryptCommand` and `DatabaseEncryptCommand`
+- `AbstractDatabaseCommand::BATCH_SIZE` — extracted the magic number `50` from `processEntities()` into a class constant
+- `DatabaseDecryptCommand::execute()` / `DatabaseEncryptCommand::execute()` — simplified to a single-line delegation to `executeOperation()`
+- `AbstractType::$encryptor` — declared nullable (`?EncryptorInterface = null`) instead of relying on `isset()` for presence detection
+- `AbstractType::convertToDatabaseValue()` / `convertToPHPValue()` — now access the encryptor through `getEncryptor()` (which calls `validate()`) instead of duplicating the `validate()` call and touching `$this->encryptor` directly
+- `AbstractType::validate()` — `null === $this->encryptor` check replaces the `isset()` check
+- `AbstractEncryptor::__debugInfo()` — relocated immediately after the constructor for declaration ordering consistency
+- `composer.lock` — bumped `precision-soft/symfony-console` to `v4.2.1`, `precision-soft/symfony-phpunit` to `v3.2.1`, `phpstan/phpstan` to `2.1.47`
+
 ## [v3.1.0] - 2026-04-12
 
 ### Fixed
@@ -190,6 +203,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v1.0.0] - 2024-09-17
 
 Initial release.
+
+[v3.1.1]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v3.1.0...v3.1.1
 
 [v3.1.0]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v3.0.2...v3.1.0
 
