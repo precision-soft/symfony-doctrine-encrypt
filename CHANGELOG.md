@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v3.1.2] - 2026-04-14
+
+### Fixed
+
+- `EntityService::hasEncryptedValue()` now returns `false` immediately when any identifier value is `null`, preventing `WHERE NULL` conditions for unsaved entities
+- `AbstractDatabaseCommand::applyKeysetPagination()` now skips `null` identifier values instead of emitting null comparison conditions
+
 ## [v3.1.1] - 2026-04-14
 
 ### Changed
@@ -20,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `AbstractEncryptor::__debugInfo()` — relocated immediately after the constructor for declaration ordering consistency
 - `composer.lock` — bumped `precision-soft/symfony-console` to `v4.2.1`, `precision-soft/symfony-phpunit` to `v3.2.1`, `phpstan/phpstan` to `2.1.47`
 
-## [v3.1.0] - 2026-04-12
+## [v3.1.0] - 2026-04-13
 
 ### Fixed
 
@@ -202,7 +209,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v1.0.0] - 2024-09-17
 
-Initial release.
+### Added
+
+- `AbstractEncryptor` + `AES256Encryptor` / `AES256FixedEncryptor` — AES-256 encryption primitives (random-nonce and deterministic variants)
+- `FakeEncryptor` — no-op encryptor for test environments
+- Custom Doctrine DBAL types: `AbstractType`, `AES256Type`, `AES256FixedType` — transparent encrypt/decrypt on persistence
+- `EncryptorFactory` — resolves encryptors by type name/class; tracks registered encryptors
+- `EntityService` — metadata helpers (`isEncrypted()`, `isValueEncrypted()`, encrypted-field enumeration) for entity-level workflows
+- `EntityMetadataDto` — encrypted-field metadata snapshot used by `EntityService` and the database commands
+- `DatabaseEncryptCommand` and `DatabaseDecryptCommand` — console commands that re-encrypt or decrypt existing data in bulk; share logic via `AbstractDatabaseCommand`
+- Project-specific exception hierarchy: `Exception`, `DuplicateEncryptorException`, `EncryptorNotFoundException`, `FieldNotEncryptedException`, `TypeNotFoundException`, `StopException`
+- `PrecisionSoftDoctrineEncryptBundle` + `PrecisionSoftDoctrineEncryptExtension` + `Configuration` — Symfony DI integration and config tree
+- `EncryptorInterface` contract for custom encryptor implementations
+
+### Notes
+
+- Initial public release of `precision-soft/symfony-doctrine-encrypt`
+
+[Unreleased]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v3.1.2...HEAD
+
+[v3.1.2]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v3.1.1...v3.1.2
 
 [v3.1.1]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v3.1.0...v3.1.1
 
