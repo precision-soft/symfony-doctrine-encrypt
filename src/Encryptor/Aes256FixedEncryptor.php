@@ -8,9 +8,10 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Encrypt\Encryptor;
 
+use PrecisionSoft\Doctrine\Encrypt\Contract\DeterministicEncryptorInterface;
 use PrecisionSoft\Doctrine\Encrypt\Type\Aes256FixedType;
 
-class Aes256FixedEncryptor extends AbstractEncryptor
+class Aes256FixedEncryptor extends AbstractEncryptor implements DeterministicEncryptorInterface
 {
     public function getTypeClass(): string
     {

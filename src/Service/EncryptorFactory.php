@@ -41,6 +41,7 @@ class EncryptorFactory
         $this->typeNames = [];
 
         foreach ($encryptors as $encryptor) {
+            /** @info FakeEncryptor is always registered regardless of enabledEncryptors — it is required by the database migration commands */
             if ([] !== $enabledEncryptors && false === ($encryptor instanceof FakeEncryptor) && false === \in_array($encryptor::class, $enabledEncryptors, true)) {
                 continue;
             }

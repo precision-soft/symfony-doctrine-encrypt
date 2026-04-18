@@ -8,11 +8,10 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Encrypt\Command;
 
+use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\QueryBuilder;
-use Doctrine\ORM\UnitOfWork;
 use Doctrine\Persistence\ManagerRegistry;
-use Doctrine\Persistence\ObjectManager;
 use PrecisionSoft\Doctrine\Encrypt\Contract\EncryptorInterface;
 use PrecisionSoft\Doctrine\Encrypt\Dto\EntityMetadataDto;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\FakeEncryptor;
@@ -22,6 +21,7 @@ use PrecisionSoft\Doctrine\Encrypt\Service\EncryptorFactory;
 use PrecisionSoft\Doctrine\Encrypt\Service\EntityService;
 use PrecisionSoft\Symfony\Console\Command\AbstractCommand;
 use Symfony\Component\Console\Helper\ProgressBar;
+use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Question\ConfirmationQuestion;
 use Throwable;
@@ -53,9 +53,15 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
         return true === \is_string($managerName) ? $managerName : null;
     }
 
-    protected function getManager(): ObjectManager
+    protected function getManager(): EntityManagerInterface
     {
-        return $this->managerRegistry->getManager($this->getManagerName());
+        $objectManager = $this->managerRegistry->getManager($this->getManagerName());
+
+        if (false === ($objectManager instanceof EntityManagerInterface)) {
+            throw new Exception(\sprintf('expected EntityManagerInterface, got `%s`', $objectManager::class));
+        }
+
+        return $objectManager;
     }
 
     protected function executeOperation(bool $decrypt): int
@@ -102,7 +108,7 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
         $identifierFieldNames = $entityMetadataDto->getClassMetadata()->getIdentifierFieldNames();
 
         $entityManager = $this->getManager();
-        /** @var EntityRepository $repository */
+        /** @var EntityRepository<object> $repository */
         $repository = $entityManager->getRepository($className);
 
         $total = $repository->createQueryBuilder('e')
@@ -117,68 +123,69 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
         $progressBar = new ProgressBar($this->output, (int)$total);
         $lastIdentifierValues = null;
 
-        $resetEncryptors = true === $useFakeEncryptors
-            ? $this->resetEncryptorsToFake($entityMetadataDto->getEncryptionFields())
-            : null;
+        do {
+            $entityManager = $this->getManager();
+            $unitOfWork = $entityManager->getUnitOfWork();
 
-        try {
-            do {
-                $entityManager = $this->getManager();
-                /** @var UnitOfWork $unitOfWork */
-                $unitOfWork = $entityManager->getUnitOfWork();
+            /** @var EntityRepository<object> $repository */
+            $repository = $entityManager->getRepository($className);
 
-                /** @var EntityRepository $repository */
-                $repository = $entityManager->getRepository($className);
+            $queryBuilder = $repository->createQueryBuilder('e')
+                ->select('e');
 
-                $queryBuilder = $repository->createQueryBuilder('e')
-                    ->select('e');
+            foreach ($identifierFieldNames as $identifierFieldName) {
+                $queryBuilder->addOrderBy('e.' . $identifierFieldName, 'ASC');
+            }
 
-                foreach ($identifierFieldNames as $identifierFieldName) {
-                    $queryBuilder->addOrderBy('e.' . $identifierFieldName, 'ASC');
-                }
+            $queryBuilder->setMaxResults(self::BATCH_SIZE);
 
-                $queryBuilder->setMaxResults(self::BATCH_SIZE);
+            if (null !== $lastIdentifierValues) {
+                $this->applyKeysetPagination($queryBuilder, $identifierFieldNames, $lastIdentifierValues);
+            }
 
-                if (null !== $lastIdentifierValues) {
-                    $this->applyKeysetPagination($queryBuilder, $identifierFieldNames, $lastIdentifierValues);
-                }
+            /** @info SELECT runs with the real encryptor so entity properties hold plaintext (or pass-through on non-encrypted data); the FakeEncryptor swap is intentionally deferred until the flush phase below */
+            $entities = $queryBuilder->getQuery()->getResult();
 
-                $entities = $queryBuilder->getQuery()->getResult();
+            if ([] === $entities) {
+                break;
+            }
 
-                if ([] === $entities) {
-                    break;
-                }
+            try {
+                foreach ($entities as $entity) {
+                    $lastIdentifierValues = $entityMetadataDto->getClassMetadata()->getIdentifierValues($entity);
 
-                try {
-                    foreach ($entities as $entity) {
-                        $lastIdentifierValues = $entityMetadataDto->getClassMetadata()->getIdentifierValues($entity);
+                    $originalEntityData = $unitOfWork->getOriginalEntityData($entity);
 
-                        $originalEntityData = $unitOfWork->getOriginalEntityData($entity);
-
-                        foreach ($entityMetadataDto->getEncryptionFields() as $fieldName => $typeName) {
-                            $originalEntityData[$fieldName] = null;
-                        }
-
-                        $unitOfWork->setOriginalEntityData($entity, $originalEntityData);
-                        $entityManager->persist($entity);
-                        $progressBar->advance();
+                    foreach ($entityMetadataDto->getEncryptionFields() as $fieldName => $typeName) {
+                        $originalEntityData[$fieldName] = null;
                     }
 
-                    $entityManager->flush();
-                } catch (Throwable $throwable) {
-                    $this->managerRegistry->resetManager($this->getManagerName());
-
-                    throw $throwable;
+                    $unitOfWork->setOriginalEntityData($entity, $originalEntityData);
+                    $entityManager->persist($entity);
+                    $progressBar->advance();
                 }
 
-                $entityManager->clear();
-                \gc_collect_cycles();
-            } while (true);
-        } finally {
-            if (null !== $resetEncryptors) {
-                $this->restoreEncryptors($resetEncryptors);
+                /** @info for the decrypt path, swap to FakeEncryptor only around flush so plaintext from the SELECT phase above is written back unchanged */
+                $resetEncryptors = true === $useFakeEncryptors
+                    ? $this->resetEncryptorsToFake($entityMetadataDto->getEncryptionFields())
+                    : null;
+
+                try {
+                    $entityManager->flush();
+                } finally {
+                    if (null !== $resetEncryptors) {
+                        $this->restoreEncryptors($resetEncryptors);
+                    }
+                }
+            } catch (Throwable $throwable) {
+                $this->managerRegistry->resetManager($this->getManagerName());
+
+                throw $throwable;
             }
-        }
+
+            $entityManager->clear();
+            \gc_collect_cycles();
+        } while (true);
 
         $progressBar->finish();
         $this->writeln('');
@@ -206,6 +213,7 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
         );
 
         $questionHelper = $this->getHelper('question');
+        \assert($questionHelper instanceof QuestionHelper);
 
         if (false === $questionHelper->ask($this->input, $this->output, $confirmationQuestion)) {
             throw new StopException();
@@ -223,9 +231,16 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
     ): void {
         if (1 === \count($identifierFieldNames)) {
             $identifierFieldName = $identifierFieldNames[0];
+            $value = $lastIdentifierValues[$identifierFieldName];
+
+            /** @info skip keyset pagination for null identifiers — null PKs cannot be compared with > */
+            if (null === $value) {
+                return;
+            }
+
             $queryBuilder
                 ->andWhere('e.' . $identifierFieldName . ' > :lastId')
-                ->setParameter('lastId', $lastIdentifierValues[$identifierFieldName]);
+                ->setParameter('lastId', $value);
 
             return;
         }
@@ -234,8 +249,15 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
         $previousFields = [];
 
         foreach ($identifierFieldNames as $index => $identifierFieldName) {
+            $value = $lastIdentifierValues[$identifierFieldName];
+
+            /** @info skip keyset pagination for null identifiers — null PKs cannot be compared with > */
+            if (null === $value) {
+                continue;
+            }
+
             $parameterName = 'lastId' . $index;
-            $queryBuilder->setParameter($parameterName, $lastIdentifierValues[$identifierFieldName]);
+            $queryBuilder->setParameter($parameterName, $value);
 
             $equalParts = [];
             foreach ($previousFields as $previousIndex => $previousFieldName) {

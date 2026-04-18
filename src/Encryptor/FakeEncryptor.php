@@ -11,6 +11,10 @@ namespace PrecisionSoft\Doctrine\Encrypt\Encryptor;
 use PrecisionSoft\Doctrine\Encrypt\Contract\EncryptorInterface;
 
 /**
+ * Used internally during the encrypt/decrypt migration commands (AbstractDatabaseCommand::resetEncryptorsToFake)
+ * to act as a pass-through that returns data unmodified, allowing reading already-decrypted values during
+ * the re-encryption workflow.
+ *
  * @internal
  */
 class FakeEncryptor implements EncryptorInterface

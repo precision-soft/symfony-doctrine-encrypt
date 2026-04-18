@@ -8,25 +8,30 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Encrypt\Test\Command;
 
+use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\Query;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\ORM\UnitOfWork;
 use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\Persistence\Mapping\ClassMetadata;
-use Doctrine\Persistence\ObjectManager;
 use Mockery;
-use PrecisionSoft\Symfony\Phpunit\MockDto;
-use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
+use PrecisionSoft\Doctrine\Encrypt\Command\DatabaseDecryptCommand;
 use PrecisionSoft\Doctrine\Encrypt\Command\DatabaseEncryptCommand;
+use PrecisionSoft\Doctrine\Encrypt\Contract\EncryptorInterface;
 use PrecisionSoft\Doctrine\Encrypt\Dto\EntityMetadataDto;
+use PrecisionSoft\Doctrine\Encrypt\Encryptor\FakeEncryptor;
 use PrecisionSoft\Doctrine\Encrypt\Exception\Exception;
 use PrecisionSoft\Doctrine\Encrypt\Service\EncryptorFactory;
 use PrecisionSoft\Doctrine\Encrypt\Service\EntityService;
+use PrecisionSoft\Doctrine\Encrypt\Type\AbstractType;
+use PrecisionSoft\Symfony\Phpunit\MockDto;
+use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
+use ReflectionMethod;
+use stdClass;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
-use stdClass;
 
 /** @internal */
 final class AbstractDatabaseCommandTest extends AbstractTestCase
@@ -54,7 +59,7 @@ final class AbstractDatabaseCommandTest extends AbstractTestCase
             ->with('lastId', 42)
             ->andReturnSelf();
 
-        $reflectionMethod = new \ReflectionMethod($databaseEncryptCommand, 'applyKeysetPagination');
+        $reflectionMethod = new ReflectionMethod($databaseEncryptCommand, 'applyKeysetPagination');
         $reflectionMethod->invoke($databaseEncryptCommand, $queryBuilder, ['id'], ['id' => 42]);
     }
 
@@ -79,7 +84,7 @@ final class AbstractDatabaseCommandTest extends AbstractTestCase
             ->once()
             ->andReturnSelf();
 
-        $reflectionMethod = new \ReflectionMethod($databaseEncryptCommand, 'applyKeysetPagination');
+        $reflectionMethod = new ReflectionMethod($databaseEncryptCommand, 'applyKeysetPagination');
         $reflectionMethod->invoke(
             $databaseEncryptCommand,
             $queryBuilder,
@@ -136,7 +141,7 @@ final class AbstractDatabaseCommandTest extends AbstractTestCase
         $unitOfWork->shouldReceive('getOriginalEntityData')->with($entity)->andReturn(['id' => 1, 'email' => 'secret']);
         $unitOfWork->shouldReceive('setOriginalEntityData')->once()->with($entity, ['id' => 1, 'email' => null]);
 
-        $entityManager = Mockery::mock(ObjectManager::class);
+        $entityManager = Mockery::mock(EntityManagerInterface::class);
         $entityManager->shouldReceive('getRepository')->with($className)->andReturn($entityRepository);
         $entityManager->shouldReceive('getUnitOfWork')->andReturn($unitOfWork);
         $entityManager->shouldReceive('persist')->once()->with($entity);
@@ -159,6 +164,94 @@ final class AbstractDatabaseCommandTest extends AbstractTestCase
         $application->addCommand($databaseEncryptCommand);
 
         $commandTester = new CommandTester($databaseEncryptCommand);
+        $commandTester->execute([], ['interactive' => false]);
+
+        static::assertSame(Command::SUCCESS, $commandTester->getStatusCode());
+    }
+
+    public function testDecryptSwapsFakeEncryptorOnlyAroundFlush(): void
+    {
+        $entity = new stdClass();
+        $className = stdClass::class;
+        $typeName = 'encryptedAes256';
+
+        $classMetadata = Mockery::mock(ClassMetadata::class);
+        $classMetadata->shouldReceive('getName')->andReturn($className);
+        $classMetadata->shouldReceive('getIdentifierFieldNames')->andReturn(['id']);
+        $classMetadata->shouldReceive('getIdentifierValues')->with($entity)->andReturn(['id' => 1]);
+
+        $entityMetadataDto = new EntityMetadataDto($classMetadata, ['email' => $typeName]);
+
+        $countQuery = Mockery::mock(Query::class);
+        $countQuery->shouldReceive('getSingleScalarResult')->once()->andReturn(1);
+
+        $countQueryBuilder = Mockery::mock(QueryBuilder::class);
+        $countQueryBuilder->shouldReceive('select')->with('COUNT(e)')->andReturnSelf();
+        $countQueryBuilder->shouldReceive('getQuery')->once()->andReturn($countQuery);
+
+        $firstEntityQuery = Mockery::mock(Query::class);
+        /** @info expectation ordered("select") ensures the SELECT executes BEFORE the FakeEncryptor swap — if the swap happened first (SDE-119), entity properties would never see plaintext */
+        $firstEntityQuery->shouldReceive('getResult')->once()->ordered('select')->andReturn([$entity]);
+
+        $firstEntityQueryBuilder = Mockery::mock(QueryBuilder::class);
+        $firstEntityQueryBuilder->shouldReceive('select')->with('e')->andReturnSelf();
+        $firstEntityQueryBuilder->shouldReceive('addOrderBy')->with('e.id', 'ASC')->andReturnSelf();
+        $firstEntityQueryBuilder->shouldReceive('setMaxResults')->with(50)->andReturnSelf();
+        $firstEntityQueryBuilder->shouldReceive('getQuery')->once()->andReturn($firstEntityQuery);
+
+        $secondEntityQuery = Mockery::mock(Query::class);
+        $secondEntityQuery->shouldReceive('getResult')->once()->andReturn([]);
+
+        $secondEntityQueryBuilder = Mockery::mock(QueryBuilder::class);
+        $secondEntityQueryBuilder->shouldReceive('select')->with('e')->andReturnSelf();
+        $secondEntityQueryBuilder->shouldReceive('addOrderBy')->with('e.id', 'ASC')->andReturnSelf();
+        $secondEntityQueryBuilder->shouldReceive('setMaxResults')->with(50)->andReturnSelf();
+        $secondEntityQueryBuilder->shouldReceive('andWhere')->with('e.id > :lastId')->andReturnSelf();
+        $secondEntityQueryBuilder->shouldReceive('setParameter')->with('lastId', 1)->andReturnSelf();
+        $secondEntityQueryBuilder->shouldReceive('getQuery')->once()->andReturn($secondEntityQuery);
+
+        $entityRepository = Mockery::mock(EntityRepository::class);
+        $entityRepository->shouldReceive('createQueryBuilder')
+            ->with('e')
+            ->andReturn($countQueryBuilder, $firstEntityQueryBuilder, $secondEntityQueryBuilder);
+
+        $unitOfWork = Mockery::mock(UnitOfWork::class);
+        $unitOfWork->shouldReceive('getOriginalEntityData')->with($entity)->andReturn(['id' => 1, 'email' => 'plaintext']);
+        $unitOfWork->shouldReceive('setOriginalEntityData')->once()->with($entity, ['id' => 1, 'email' => null]);
+
+        $originalEncryptor = Mockery::mock(EncryptorInterface::class);
+        $fakeEncryptor = Mockery::mock(FakeEncryptor::class);
+
+        $abstractType = Mockery::mock(AbstractType::class);
+        $abstractType->shouldReceive('getEncryptor')->once()->ordered('select')->andReturn($originalEncryptor);
+        $abstractType->shouldReceive('setEncryptor')->once()->ordered('select')->with($fakeEncryptor)->andReturnSelf();
+        $abstractType->shouldReceive('setEncryptor')->once()->ordered('select')->with($originalEncryptor)->andReturnSelf();
+
+        $entityManager = Mockery::mock(EntityManagerInterface::class);
+        $entityManager->shouldReceive('getRepository')->with($className)->andReturn($entityRepository);
+        $entityManager->shouldReceive('getUnitOfWork')->andReturn($unitOfWork);
+        $entityManager->shouldReceive('persist')->once()->with($entity);
+        $entityManager->shouldReceive('flush')->once();
+        $entityManager->shouldReceive('clear')->once();
+
+        $managerRegistry = Mockery::mock(ManagerRegistry::class);
+        $managerRegistry->shouldReceive('getManager')->with(null)->andReturn($entityManager);
+
+        $encryptorFactory = Mockery::mock(EncryptorFactory::class);
+        $encryptorFactory->shouldReceive('getType')->with($typeName)->andReturn($abstractType);
+        $encryptorFactory->shouldReceive('getEncryptor')->with(FakeEncryptor::class)->andReturn($fakeEncryptor);
+
+        $entityService = Mockery::mock(EntityService::class);
+        $entityService->shouldReceive('getEntitiesWithEncryption')
+            ->once()
+            ->andReturn([$entityMetadataDto]);
+
+        $databaseDecryptCommand = new DatabaseDecryptCommand($managerRegistry, $encryptorFactory, $entityService);
+
+        $application = new Application();
+        $application->addCommand($databaseDecryptCommand);
+
+        $commandTester = new CommandTester($databaseDecryptCommand);
         $commandTester->execute([], ['interactive' => false]);
 
         static::assertSame(Command::SUCCESS, $commandTester->getStatusCode());
@@ -201,7 +294,7 @@ final class AbstractDatabaseCommandTest extends AbstractTestCase
         $unitOfWork->shouldReceive('getOriginalEntityData')->with($entity)->andReturn(['id' => 1, 'email' => 'secret']);
         $unitOfWork->shouldReceive('setOriginalEntityData')->once()->with($entity, ['id' => 1, 'email' => null]);
 
-        $entityManager = Mockery::mock(ObjectManager::class);
+        $entityManager = Mockery::mock(EntityManagerInterface::class);
         $entityManager->shouldReceive('getRepository')->with($className)->andReturn($entityRepository);
         $entityManager->shouldReceive('getUnitOfWork')->andReturn($unitOfWork);
         $entityManager->shouldReceive('persist')->once()->with($entity);

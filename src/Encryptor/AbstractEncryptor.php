@@ -24,6 +24,7 @@ abstract class AbstractEncryptor implements EncryptorInterface
     protected readonly string $nonceKey;
     private readonly string $encryptionKey;
     private readonly string $macKey;
+    /** @var int<1, max>|null */
     private ?int $initialVectorLengthCache = null;
 
     abstract public function getTypeClass(): string;
@@ -148,6 +149,7 @@ abstract class AbstractEncryptor implements EncryptorInterface
         return $plaintext;
     }
 
+    /** @return int<1, max> */
     protected function getInitialVectorLength(): int
     {
         if (null !== $this->initialVectorLengthCache) {

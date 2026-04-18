@@ -33,7 +33,7 @@ class PrecisionSoftDoctrineEncryptBundle extends Bundle
             return;
         }
 
-        /** required because of how doctrine instantiates its types */
+        /** @info required because of how doctrine instantiates its types */
         /** @var EncryptorFactory $encryptorFactory */
         $encryptorFactory = $this->container->get(EncryptorFactory::class);
 
@@ -63,6 +63,7 @@ class PrecisionSoftDoctrineEncryptBundle extends Bundle
             }
 
             if (false === Type::hasType($typeName)) {
+                \assert(\is_a($typeClass, Type::class, true));
                 Type::addType($typeName, $typeClass);
             }
 

@@ -89,7 +89,7 @@ The entity always holds the plaintext value. Encryption and decryption happen tr
 
 ### WHERE queries with encrypted fields
 
-`encryptedAes256fixed` fields can be searched with a WHERE clause. Use `EntityService::setEncryptedParameter()` to encrypt the search value before binding it:
+`encryptedAes256fixed` fields can be searched with a WHERE clause. Use `EntityService::setEncryptedParameter()` to encrypt the search value before binding it. The method requires the field's encryptor to implement `DeterministicEncryptorInterface`; otherwise it throws `NonDeterministicEncryptorException`, since non-deterministic encryptors produce a different ciphertext on every call and the generated WHERE clause would never match.
 
 ```php
 <?php
@@ -158,6 +158,7 @@ php bin/console precision-soft:doctrine:database:encrypt --manager=secondary
 
 ## Security considerations
 
+- **Cipher and key derivation**: Encryption uses AES-256-CTR. Keys are derived from the configured salt via HKDF-SHA256 with distinct info strings (`'encryption'`, `'authentication'`, `'nonce'`), producing separate subkeys for each purpose. Authentication uses HMAC-SHA256.
 - **Salt stability**: The salt is the encryption key. If it changes, all existing encrypted data becomes unreadable. Store it in a secret manager and never rotate it without first decrypting the database.
 - **Non-deterministic vs deterministic**: `Aes256Type` uses a random nonce per encryption, so the same plaintext produces different ciphertext on each call — this is the secure default. `Aes256FixedType` uses a deterministic nonce derived from the plaintext, enabling `WHERE` queries but leaking the fact that two rows have the same value.
 - **MAC verification**: Every encrypted value includes an HMAC-SHA256 tag. Tampered or corrupted values are rejected on decryption.
@@ -209,6 +210,38 @@ class MyCustomEncryptor implements EncryptorInterface
     public function getTypeName(): ?string
     {
         return Aes256Type::getFullName();
+    }
+
+    public function encrypt(string $data): string
+    {
+    }
+
+    public function decrypt(string $data): string
+    {
+    }
+}
+```
+
+If the custom encryptor produces the same ciphertext for the same plaintext across calls, mark it with `DeterministicEncryptorInterface` so it can be used with `EntityService::setEncryptedParameter()` for WHERE queries:
+
+```php
+<?php
+
+declare(strict_types=1);
+
+use PrecisionSoft\Doctrine\Encrypt\Contract\DeterministicEncryptorInterface;
+use PrecisionSoft\Doctrine\Encrypt\Type\Aes256FixedType;
+
+class MyDeterministicEncryptor implements DeterministicEncryptorInterface
+{
+    public function getTypeClass(): string
+    {
+        return Aes256FixedType::class;
+    }
+
+    public function getTypeName(): ?string
+    {
+        return Aes256FixedType::getFullName();
     }
 
     public function encrypt(string $data): string

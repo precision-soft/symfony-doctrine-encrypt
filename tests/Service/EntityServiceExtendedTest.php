@@ -9,6 +9,7 @@ declare(strict_types=1);
 namespace PrecisionSoft\Doctrine\Encrypt\Test\Service;
 
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Platforms\AbstractPlatform;
 use Doctrine\DBAL\Query\QueryBuilder as DbalQueryBuilder;
 use Doctrine\DBAL\Result;
 use Doctrine\ORM\EntityManagerInterface;
@@ -19,13 +20,15 @@ use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\Persistence\Mapping\ClassMetadata;
 use Mockery;
 use Mockery\MockInterface;
-use PrecisionSoft\Symfony\Phpunit\MockDto;
-use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256Encryptor;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256FixedEncryptor;
+use PrecisionSoft\Doctrine\Encrypt\Exception\NonDeterministicEncryptorException;
 use PrecisionSoft\Doctrine\Encrypt\Service\EncryptorFactory;
 use PrecisionSoft\Doctrine\Encrypt\Service\EntityService;
 use PrecisionSoft\Doctrine\Encrypt\Type\Aes256FixedType;
+use PrecisionSoft\Doctrine\Encrypt\Type\Aes256Type;
+use PrecisionSoft\Symfony\Phpunit\MockDto;
+use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
 use stdClass;
 
 /** @internal */
@@ -140,17 +143,17 @@ final class EntityServiceExtendedTest extends AbstractTestCase
             $this->aes256FixedEncryptor,
         );
 
-        $classMetadataMock = Mockery::mock(ClassMetadata::class);
-        $classMetadataMock->shouldReceive('getFieldNames')
+        $classMetadata = Mockery::mock(ClassMetadata::class);
+        $classMetadata->shouldReceive('getFieldNames')
             ->andReturn([$fieldName]);
-        $classMetadataMock->shouldReceive('getTypeOfField')
+        $classMetadata->shouldReceive('getTypeOfField')
             ->with($fieldName)
             ->andReturn(Aes256FixedType::getFullName());
 
         $classMetadataFactory = Mockery::mock(ClassMetadataFactory::class);
         $classMetadataFactory->shouldReceive('getMetadataFor')
             ->with($className)
-            ->andReturn($classMetadataMock);
+            ->andReturn($classMetadata);
 
         $entityManager = Mockery::mock(EntityManagerInterface::class);
         $entityManager->shouldReceive('getMetadataFactory')
@@ -192,17 +195,17 @@ final class EntityServiceExtendedTest extends AbstractTestCase
             $this->aes256FixedEncryptor,
         );
 
-        $classMetadataMock = Mockery::mock(ClassMetadata::class);
-        $classMetadataMock->shouldReceive('getFieldNames')
+        $classMetadata = Mockery::mock(ClassMetadata::class);
+        $classMetadata->shouldReceive('getFieldNames')
             ->andReturn([$fieldName]);
-        $classMetadataMock->shouldReceive('getTypeOfField')
+        $classMetadata->shouldReceive('getTypeOfField')
             ->with($fieldName)
             ->andReturn(Aes256FixedType::getFullName());
 
         $classMetadataFactory = Mockery::mock(ClassMetadataFactory::class);
         $classMetadataFactory->shouldReceive('getMetadataFor')
             ->with($className)
-            ->andReturn($classMetadataMock);
+            ->andReturn($classMetadata);
 
         $entityManager = Mockery::mock(EntityManagerInterface::class);
         $entityManager->shouldReceive('getMetadataFactory')
@@ -231,6 +234,97 @@ final class EntityServiceExtendedTest extends AbstractTestCase
             $plaintext,
             $managerName,
         );
+    }
+
+    public function testSetEncryptedParameterThrowsWhenEncryptorIsNotDeterministic(): void
+    {
+        $className = 'App\\Entity\\User';
+        $fieldName = 'email';
+
+        $encryptorFactory = $this->createEncryptorFactoryMock(
+            [Aes256Type::getFullName()],
+            $this->aes256Encryptor,
+        );
+
+        $classMetadata = Mockery::mock(ClassMetadata::class);
+        $classMetadata->shouldReceive('getFieldNames')
+            ->andReturn([$fieldName]);
+        $classMetadata->shouldReceive('getTypeOfField')
+            ->with($fieldName)
+            ->andReturn(Aes256Type::getFullName());
+
+        $classMetadataFactory = Mockery::mock(ClassMetadataFactory::class);
+        $classMetadataFactory->shouldReceive('getMetadataFor')
+            ->with($className)
+            ->andReturn($classMetadata);
+
+        $entityManager = Mockery::mock(EntityManagerInterface::class);
+        $entityManager->shouldReceive('getMetadataFactory')
+            ->andReturn($classMetadataFactory);
+
+        $managerRegistry = Mockery::mock(ManagerRegistry::class);
+        $managerRegistry->shouldReceive('getManager')
+            ->with(null)
+            ->andReturn($entityManager);
+
+        $entityService = new EntityService($managerRegistry, $encryptorFactory);
+
+        $ormQueryBuilder = Mockery::mock(OrmQueryBuilder::class);
+
+        $this->expectException(NonDeterministicEncryptorException::class);
+
+        $entityService->setEncryptedParameter(
+            $ormQueryBuilder,
+            'param',
+            $className,
+            $fieldName,
+            'plaintext',
+        );
+    }
+
+    public function testGetEncryptedFieldsCachedOnRepeatedLookup(): void
+    {
+        $className = 'App\\Entity\\User';
+        $fieldName = 'email';
+
+        $encryptorFactory = $this->createEncryptorFactoryMock(
+            [Aes256Type::getFullName()],
+            $this->aes256Encryptor,
+        );
+
+        $classMetadata = Mockery::mock(ClassMetadata::class);
+        $classMetadata->shouldReceive('getFieldNames')
+            ->once()
+            ->andReturn([$fieldName]);
+        $classMetadata->shouldReceive('getTypeOfField')
+            ->once()
+            ->with($fieldName)
+            ->andReturn(Aes256Type::getFullName());
+
+        $classMetadataFactory = Mockery::mock(ClassMetadataFactory::class);
+        $classMetadataFactory->shouldReceive('getMetadataFor')
+            ->once()
+            ->with($className)
+            ->andReturn($classMetadata);
+
+        $entityManager = Mockery::mock(EntityManagerInterface::class);
+        $entityManager->shouldReceive('getMetadataFactory')
+            ->once()
+            ->andReturn($classMetadataFactory);
+
+        $managerRegistry = Mockery::mock(ManagerRegistry::class);
+        $managerRegistry->shouldReceive('getManager')
+            ->once()
+            ->with(null)
+            ->andReturn($entityManager);
+
+        $entityService = new EntityService($managerRegistry, $encryptorFactory);
+
+        $entityService->hasEncryptor($className, $fieldName);
+        $entityService->hasEncryptor($className, $fieldName);
+        $entityService->hasEncryptor($className, $fieldName);
+
+        static::assertSame(true, $entityService->hasEncryptor($className, $fieldName));
     }
 
     /**
@@ -262,6 +356,13 @@ final class EntityServiceExtendedTest extends AbstractTestCase
                 ->andReturn($identifierField);
         }
 
+        $platform = Mockery::mock(AbstractPlatform::class);
+        $platform->shouldReceive('quoteSingleIdentifier')
+            ->andReturnUsing(static fn(string $name): string => '"' . $name . '"');
+
+        $quotedColumnName = '"' . $columnName . '"';
+        $quotedTableName = '"' . $tableName . '"';
+
         $result = Mockery::mock(Result::class);
         $result->shouldReceive('fetchOne')
             ->once()
@@ -269,10 +370,10 @@ final class EntityServiceExtendedTest extends AbstractTestCase
 
         $dbalQueryBuilder = Mockery::mock(DbalQueryBuilder::class);
         $dbalQueryBuilder->shouldReceive('select')
-            ->with($columnName)
+            ->with($quotedColumnName)
             ->andReturnSelf();
         $dbalQueryBuilder->shouldReceive('from')
-            ->with($tableName)
+            ->with($quotedTableName)
             ->andReturnSelf();
         $dbalQueryBuilder->shouldReceive('andWhere')
             ->andReturnSelf();
@@ -286,6 +387,8 @@ final class EntityServiceExtendedTest extends AbstractTestCase
         $connection->shouldReceive('createQueryBuilder')
             ->once()
             ->andReturn($dbalQueryBuilder);
+        $connection->shouldReceive('getDatabasePlatform')
+            ->andReturn($platform);
 
         $entityManager = Mockery::mock(EntityManagerInterface::class);
         $entityManager->shouldReceive('getClassMetadata')

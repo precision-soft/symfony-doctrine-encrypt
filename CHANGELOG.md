@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v3.2.0] - 2026-04-18
+
+### Added
+
+- `Contract\DeterministicEncryptorInterface` — marker interface for encryptors that produce identical ciphertext for identical plaintext. Implemented by `Aes256FixedEncryptor`. Required for `EntityService::setEncryptedParameter()`
+- `Exception\NonDeterministicEncryptorException` — thrown by `EntityService::setEncryptedParameter()` when the field's encryptor does not implement `DeterministicEncryptorInterface`, preventing WHERE clauses that would never match
+- `README.md` — "Security considerations" entry describing cipher (AES-256-CTR), key derivation (HKDF-SHA256 with per-purpose info strings), and authentication (HMAC-SHA256)
+- `README.md` — custom encryptor example demonstrating how to implement `DeterministicEncryptorInterface` for WHERE-compatible encryptors
+
+### Fixed
+
+- `AbstractDatabaseCommand::processEntities()` — `database:decrypt` now actually decrypts. The `FakeEncryptor` swap was previously applied before the SELECT, so entity properties held ciphertext and were written back unchanged on flush. The swap is now scoped to the flush phase only, wrapped in a `finally` block to guarantee restoration
+- `EntityService::hasEncryptedValue()` — identifier names, column names, and table names are now quoted via `AbstractPlatform::quoteSingleIdentifier()`, preventing SQL errors when any of them collide with reserved words
+- `EntityService::hasEncryptedValue()` — returns `false` immediately when any identifier value is `null`, preventing `WHERE NULL` conditions for unsaved entities
+- `AbstractDatabaseCommand::applyKeysetPagination()` — skips `null` identifier values instead of emitting null comparison conditions
+
+### Changed
+
+- `AbstractDatabaseCommand::getManager()` — return type narrowed from `ObjectManager` to `EntityManagerInterface`; throws `Exception` when the registered manager is not an `EntityManagerInterface` (covariant return; commands are ORM-only by contract)
+- `EntityService::getEncryptedFields()` — result cached per `($managerName, $class)` pair to avoid repeated metadata factory lookups on every `getEncryptor()` / `hasEncryptor()` / `hasEncryption()` / `encrypt()` / `decrypt()` / `setEncryptedParameter()` call
+- `EntityService` — constructor-promoted properties widened from `private readonly` to `protected readonly` for subclass extensibility
+- `FakeEncryptor` — expanded internal docblock describing its role in `AbstractDatabaseCommand::resetEncryptorsToFake`
+- `EncryptorFactory::__construct()` — added `@info` note explaining why `FakeEncryptor` is always registered regardless of `enabledEncryptors`
+- `PrecisionSoftDoctrineEncryptBundle::registerTypes()` — added `\assert(\is_a($typeClass, Type::class, true))` before `Type::addType()` for static analyzer type refinement
+- `phpstan-baseline.neon` — shrunk by ~60 entries after adding generic type annotations on `ClassMetadata<object>`, `EntityRepository<object>`, and `int<1, max>` on `AbstractEncryptor::getInitialVectorLength()`
+
 ## [v3.1.2] - 2026-04-14
 
 ### Fixed

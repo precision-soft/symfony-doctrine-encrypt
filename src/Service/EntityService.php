@@ -13,16 +13,21 @@ use Doctrine\ORM\Mapping\ClassMetadata as OrmMappingClassMetadata;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\Persistence\Mapping\ClassMetadata;
+use PrecisionSoft\Doctrine\Encrypt\Contract\DeterministicEncryptorInterface;
 use PrecisionSoft\Doctrine\Encrypt\Contract\EncryptorInterface;
 use PrecisionSoft\Doctrine\Encrypt\Dto\EntityMetadataDto;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\AbstractEncryptor;
 use PrecisionSoft\Doctrine\Encrypt\Exception\FieldNotEncryptedException;
+use PrecisionSoft\Doctrine\Encrypt\Exception\NonDeterministicEncryptorException;
 
 class EntityService
 {
+    /** @var array<string, array<string, string>> keyed by "managerName|class" */
+    protected array $encryptedFieldsCache = [];
+
     public function __construct(
-        private readonly ManagerRegistry $managerRegistry,
-        private readonly EncryptorFactory $encryptorFactory,
+        protected readonly ManagerRegistry $managerRegistry,
+        protected readonly EncryptorFactory $encryptorFactory,
     ) {}
 
     public function getEncryptor(
@@ -101,6 +106,17 @@ class EntityService
     ): void {
         $encryptor = $this->getEncryptor($class, $field, $managerName);
 
+        if (false === ($encryptor instanceof DeterministicEncryptorInterface)) {
+            throw new NonDeterministicEncryptorException(
+                \sprintf(
+                    'field %s::%s uses a non-deterministic encryptor (%s); setEncryptedParameter requires a DeterministicEncryptorInterface implementation',
+                    $class,
+                    $field,
+                    $encryptor::class,
+                ),
+            );
+        }
+
         $queryBuilder->setParameter($parameterName, $encryptor->encrypt($value));
     }
 
@@ -117,19 +133,27 @@ class EntityService
         /** @var EntityManagerInterface $entityManager */
         $entityManager = $this->managerRegistry->getManager($managerName);
 
-        /** @var OrmMappingClassMetadata $classMetadata */
+        /** @var OrmMappingClassMetadata<object> $classMetadata */
         $classMetadata = $entityManager->getClassMetadata($entity::class);
 
-        $columnName = $classMetadata->getColumnName($field);
-        $tableName = $classMetadata->getTableName();
         $identifiers = $classMetadata->getIdentifierValues($entity);
 
-        $queryBuilder = $entityManager->getConnection()->createQueryBuilder()
+        if (true === \in_array(null, $identifiers, true)) {
+            return false;
+        }
+
+        $connection = $entityManager->getConnection();
+        $platform = $connection->getDatabasePlatform();
+
+        $columnName = $platform->quoteSingleIdentifier($classMetadata->getColumnName($field));
+        $tableName = $platform->quoteSingleIdentifier($classMetadata->getTableName());
+
+        $queryBuilder = $connection->createQueryBuilder()
             ->select($columnName)
             ->from($tableName);
 
         foreach ($identifiers as $identifierField => $identifierValue) {
-            $identifierColumn = $classMetadata->getColumnName($identifierField);
+            $identifierColumn = $platform->quoteSingleIdentifier($classMetadata->getColumnName($identifierField));
             $queryBuilder
                 ->andWhere($identifierColumn . ' = :' . $identifierField)
                 ->setParameter($identifierField, $identifierValue);
@@ -170,13 +194,21 @@ class EntityService
         string $class,
         ?string $managerName = null,
     ): array {
+        $cacheKey = ($managerName ?? '') . '|' . $class;
+
+        if (true === isset($this->encryptedFieldsCache[$cacheKey])) {
+            return $this->encryptedFieldsCache[$cacheKey];
+        }
+
+        \assert(\class_exists($class));
         $objectManager = $this->managerRegistry->getManager($managerName);
         $classMetadata = $objectManager->getMetadataFactory()->getMetadataFor($class);
 
-        return $this->getFieldsForClassMetadata($classMetadata);
+        return $this->encryptedFieldsCache[$cacheKey] = $this->getFieldsForClassMetadata($classMetadata);
     }
 
     /**
+     * @phpstan-param ClassMetadata<object> $classMetadata
      * @return array<string, string>
      */
     protected function getFieldsForClassMetadata(ClassMetadata $classMetadata): array

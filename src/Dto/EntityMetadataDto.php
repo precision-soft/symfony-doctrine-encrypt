@@ -13,6 +13,7 @@ use Doctrine\Persistence\Mapping\ClassMetadata;
 readonly class EntityMetadataDto
 {
     /**
+     * @phpstan-param ClassMetadata<object> $classMetadata
      * @param array<string, string> $encryptionFields
      */
     public function __construct(
@@ -20,6 +21,7 @@ readonly class EntityMetadataDto
         private array $encryptionFields,
     ) {}
 
+    /** @phpstan-return ClassMetadata<object> */
     public function getClassMetadata(): ClassMetadata
     {
         return $this->classMetadata;
