@@ -25,7 +25,8 @@ return static function (ContainerConfigurator $containerConfigurator): void {
 
     $services->set(AbstractEncryptor::class)
         ->abstract()
-        ->arg('$salt', '%precision_soft_doctrine_encrypt.salt%');
+        ->arg('$saltsByVersion', '%precision_soft_doctrine_encrypt.salts_by_version%')
+        ->arg('$currentSaltVersion', '%precision_soft_doctrine_encrypt.current_salt_version%');
 
     $services->set(Aes256Encryptor::class)
         ->parent(AbstractEncryptor::class)

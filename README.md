@@ -25,36 +25,79 @@ composer require precision-soft/symfony-doctrine-encrypt
 Register the bundle in `config/bundles.php`:
 
 ```php
+<?php
+
+use PrecisionSoft\Doctrine\Encrypt\PrecisionSoftDoctrineEncryptBundle;
+
 return [
-    PrecisionSoft\Doctrine\Encrypt\PrecisionSoftDoctrineEncryptBundle::class => ['all' => true],
+    PrecisionSoftDoctrineEncryptBundle::class => ['all' => true],
 ];
 ```
 
 ## Configuration
 
-Create `config/packages/precision_soft_doctrine_encrypt.yaml`:
+Create `config/packages/precision_soft_doctrine_encrypt.php`:
 
-```yaml
-precision_soft_doctrine_encrypt:
-    # Required. Minimum 32 characters. Keep this secret and stable — changing it renders all encrypted data unreadable.
-    salt: '%env(APP_ENCRYPTION_SALT)%'
+```php
+<?php
 
-    # Optional. Restrict which encryptors are active. When empty, all registered encryptors are enabled.
-    # encryptors:
-    #     - PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256Encryptor
-    #     - PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256FixedEncryptor
+declare(strict_types=1);
 
-    # Optional. Restrict which Doctrine types are registered. When empty, all types are registered.
-    # enabled_types:
-    #     - encryptedAes256
-    #     - encryptedAes256fixed
+use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256Encryptor;
+use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256FixedEncryptor;
+use Symfony\Config\PrecisionSoftDoctrineEncryptConfig;
+
+return static function (PrecisionSoftDoctrineEncryptConfig $precisionSoftDoctrineEncryptConfig): void {
+    $precisionSoftDoctrineEncryptConfig->salt('%env(APP_ENCRYPTION_SALT)%');
+    $precisionSoftDoctrineEncryptConfig->encryptors([
+        Aes256Encryptor::class,
+        Aes256FixedEncryptor::class,
+    ]);
+    $precisionSoftDoctrineEncryptConfig->enabledTypes(['encryptedAes256', 'encryptedAes256fixed']);
+};
 ```
 
-Add the salt to your `.env`:
+The PHP variant is preferred over YAML because the `Symfony\Config\PrecisionSoftDoctrineEncryptConfig` class gives you IDE autocomplete and catches typos at parse time.
+
+`encryptors` is optional — when omitted, every encryptor registered with the `precision_soft.doctrine.encrypt.encryptor` service tag is active. List entries to restrict the built-in set or to swap a built-in encryptor for your own (see [Custom encryptors](#custom-encryptors)).
+
+`enabledTypes` is optional — when omitted, every type corresponding to an active encryptor is registered. Use this when you want a subset of columns encrypted (for example, only deterministic columns) without removing the encryptor class from the service container.
+
+`salt` is required — minimum 32 characters. It is used as HKDF input material, not a password; use a randomly generated high-entropy string. All subkeys (encryption, MAC, deterministic nonce) are derived from this single salt via HKDF-SHA256 with distinct info strings.
+
+Generate a salt and add it to `.env`:
+
+```shell
+php -r "echo base64_encode(random_bytes(48));"
+```
 
 ```dotenv
-APP_ENCRYPTION_SALT=your-random-salt-of-at-least-32-characters
+APP_ENCRYPTION_SALT=<paste the generated value here>
 ```
+
+A 32-byte (44-character base64) salt is the minimum; 48 bytes (64-character base64) is recommended. Store the salt in a secret manager (Symfony secrets, Vault, AWS Secrets Manager, ...) — never commit it. If you run multiple Doctrine entity managers, the bundle applies the same salt and the same registered types to every manager; per-manager keys are not currently supported.
+
+### Multi-salt configuration (for key rotation)
+
+When rotating encryption keys without a maintenance window, configure a map of versioned salts and point `currentSaltVersion` at the one to use for new writes. Every encryptor can still decrypt values written under any listed version.
+
+```php
+<?php
+
+declare(strict_types=1);
+
+use Symfony\Config\PrecisionSoftDoctrineEncryptConfig;
+
+return static function (PrecisionSoftDoctrineEncryptConfig $precisionSoftDoctrineEncryptConfig): void {
+    $precisionSoftDoctrineEncryptConfig->salts([
+        'v1' => '%env(APP_ENCRYPTION_SALT_V1)%',
+        'v2' => '%env(APP_ENCRYPTION_SALT_V2)%',
+    ]);
+    $precisionSoftDoctrineEncryptConfig->currentSaltVersion('v2');
+};
+```
+
+`salt` and `salts` are mutually exclusive. When `salts` is used, `currentSaltVersion` is required and must reference one of the listed versions. Every salt must meet the same minimum-length requirement (32 characters). See [Secret rotation](#secret-rotation) for the full workflow.
 
 ## Encryption types
 
@@ -71,6 +114,8 @@ APP_ENCRYPTION_SALT=your-random-salt-of-at-least-32-characters
 <?php
 
 declare(strict_types=1);
+
+namespace App\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
 
@@ -96,8 +141,11 @@ The entity always holds the plaintext value. Encryption and decryption happen tr
 
 declare(strict_types=1);
 
-use Doctrine\Persistence\ManagerRegistry;
+namespace App\Repository;
+
+use App\Entity\Customer;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\Persistence\ManagerRegistry;
 use PrecisionSoft\Doctrine\Encrypt\Service\EntityService;
 
 class CustomerRepository extends ServiceEntityRepository
@@ -158,35 +206,126 @@ php bin/console precision-soft:doctrine:database:encrypt --manager=secondary
 
 ## Security considerations
 
-- **Cipher and key derivation**: Encryption uses AES-256-CTR. Keys are derived from the configured salt via HKDF-SHA256 with distinct info strings (`'encryption'`, `'authentication'`, `'nonce'`), producing separate subkeys for each purpose. Authentication uses HMAC-SHA256.
-- **Salt stability**: The salt is the encryption key. If it changes, all existing encrypted data becomes unreadable. Store it in a secret manager and never rotate it without first decrypting the database.
+- **Cipher and key derivation**: Encryption uses AES-256-CTR. Per-salt subkeys are derived via HKDF-SHA256 (`hash_hkdf()`) with distinct info strings (`'encryption'`, `'authentication'`, `'nonce'`), producing separate subkeys for each purpose. The raw salt is never used directly as a key. Authentication uses HMAC-SHA256.
+- **Salt stability and rotation**: Salts are the encryption key material. Versioned salts (see [Multi-salt configuration](#multi-salt-configuration-for-key-rotation)) let you add new salts without losing access to data written under older ones, because every ciphertext carries its own salt-version identifier. Dropping a salt from configuration makes every row previously written under it unreadable — always run `database:decrypt`/`database:encrypt` to migrate rows off the old version first.
 - **Non-deterministic vs deterministic**: `Aes256Type` uses a random nonce per encryption, so the same plaintext produces different ciphertext on each call — this is the secure default. `Aes256FixedType` uses a deterministic nonce derived from the plaintext, enabling `WHERE` queries but leaking the fact that two rows have the same value.
-- **MAC verification**: Every encrypted value includes an HMAC-SHA256 tag. Tampered or corrupted values are rejected on decryption.
+- **MAC verification**: Every encrypted value includes an HMAC-SHA256 tag. Tampered or corrupted values are rejected on decryption. The MAC input is a canonical length-prefixed concatenation of `(format-version, salt-version, algorithm, ciphertext, nonce)`, which prevents cross-field ambiguity when any field has variable length.
 - **Raw string encryption**: Values are encrypted and decrypted as raw strings without any serialisation layer.
 - **Double-encryption protection**: The `encrypt()` method detects the encryption marker and returns already-encrypted data unchanged. This prevents accidental double-encryption when processing raw values that are already encrypted.
-- **Key derivation**: The raw salt is never used directly. Separate encryption and MAC keys are derived via HKDF (or a SHA-256 fallback), so compromising one key does not expose the other.
+- **Key separation**: Encryption, MAC, and deterministic-nonce subkeys are derived independently via HKDF info strings, so compromising one subkey does not expose the others.
 
-## Key rotation limitations
+## Secret rotation
 
-This bundle does **not** support transparent key rotation. All encrypted values are tied to the single configured salt. To rotate the encryption key you must:
+v4.0.0 embeds the salt version inside every ciphertext (see [Format versioning](#format-versioning)), so the bundle supports both online (dual-salt) and offline rotation out of the box.
 
-1. Decrypt the entire database with the current salt using `precision-soft:doctrine:database:decrypt`.
-2. Change the `salt` configuration to the new value.
-3. Re-encrypt the entire database using `precision-soft:doctrine:database:encrypt`.
+### Online rotation (no plaintext window)
 
-During the rotation window the database contains plaintext data — plan for a maintenance window and restrict access accordingly.
+This is the path to use when you cannot decrypt the whole database at once. Old and new salts coexist, old rows remain readable under the old version, new writes pick up the new version.
 
-For applications that require online key rotation (encrypting new data with a new key while still decrypting old data with the previous key), consider implementing a versioned encryption layer on top of the bundle's `EncryptorInterface`. The PynBooking project demonstrates this pattern with a version-tagged prefix and a map of secrets keyed by version.
+1. Add the new salt alongside the old one and point `currentSaltVersion` at the new version. Deploy.
+
+    ```php
+    <?php
+
+    declare(strict_types=1);
+
+    use Symfony\Config\PrecisionSoftDoctrineEncryptConfig;
+
+    return static function (PrecisionSoftDoctrineEncryptConfig $precisionSoftDoctrineEncryptConfig): void {
+        $precisionSoftDoctrineEncryptConfig->salts([
+            'v1' => '%env(APP_ENCRYPTION_SALT_V1)%',
+            'v2' => '%env(APP_ENCRYPTION_SALT_V2)%',
+        ]);
+        $precisionSoftDoctrineEncryptConfig->currentSaltVersion('v2');
+    };
+    ```
+
+   From this point on, **new writes** are stamped with `v2` and use the `v2` subkeys; **reads** of old `v1` rows continue to succeed because their salt version is embedded in the payload.
+
+2. Force every row through the current salt so old rows get re-encrypted under `v2`:
+
+    ```shell
+    php bin/console precision-soft:doctrine:database:decrypt
+    php bin/console precision-soft:doctrine:database:encrypt
+    ```
+
+   These commands only read and write through the application, so they never touch the old salt once `v1` is absent from the database.
+
+3. Once every row is under `v2`, drop the old salt from configuration and redeploy:
+
+    ```php
+    $precisionSoftDoctrineEncryptConfig->salts(['v2' => '%env(APP_ENCRYPTION_SALT_V2)%']);
+    $precisionSoftDoctrineEncryptConfig->currentSaltVersion('v2');
+    ```
+
+**Deterministic columns**: `encryptedAes256fixed` uses a deterministic nonce derived from the current salt. A row encrypted under `v1` produces a different ciphertext under `v2`, so WHERE queries stop matching until the row is re-encrypted. If you have deterministic columns used in WHERE clauses, run step 2 as part of the same deploy that flips `currentSaltVersion`, or accept that queries miss old rows until step 2 completes.
+
+### Offline rotation (maintenance window)
+
+This is the simpler path when you can briefly hold the database in plaintext:
+
+1. Decrypt every encrypted column under the current salt:
+
+    ```shell
+    php bin/console precision-soft:doctrine:database:decrypt
+    ```
+
+2. Swap `salt` (or the active entry in `salts`) for the new value and redeploy.
+
+3. Re-encrypt every column under the new salt:
+
+    ```shell
+    php bin/console precision-soft:doctrine:database:encrypt
+    ```
+
+Between steps 1 and 3 the database contains plaintext — restrict access and keep the window short.
+
+For multi-manager setups, pass `--manager=<name>` to each command and repeat per manager.
 
 ## Format versioning
 
-The encrypted output format is:
+The current encrypted output format (`v1`, introduced in v4.0.0) is:
+
+```
+<ENC>\0v1\0<salt-version>\0<base64-ciphertext>\0<base64-mac>\0<base64-nonce>
+```
+
+`<ENC>` is a fixed marker (`AbstractEncryptor::ENCRYPTION_MARKER`). The second field is the format version identifier (`AbstractEncryptor::FORMAT_VERSION_V1`). The third field identifies which salt in the configured `salts` map was used to derive the keys — on single-salt configurations it is always `default` (`AbstractEncryptor::DEFAULT_SALT_VERSION`). Separators are null bytes (`\0`).
+
+The HMAC is computed over a canonical, length-prefixed concatenation to eliminate concatenation ambiguity across variable-length fields:
+
+```
+pack('N', len(version)) || version
+  || pack('N', len(salt-version)) || salt-version
+  || pack('N', len(algorithm)) || algorithm
+  || pack('N', len(ciphertext)) || ciphertext
+  || pack('N', len(nonce)) || nonce
+```
+
+### Legacy format (pre-v4.0.0)
+
+Values written by v3.x used a 4-part, non-versioned layout:
 
 ```
 <ENC>\0<base64-ciphertext>\0<base64-mac>\0<base64-nonce>
 ```
 
-`<ENC>` is a fixed marker (`AbstractEncryptor::ENCRYPTION_MARKER`). The separator is a null byte (`\0`). There is currently no version identifier embedded in the format. If the encryption scheme changes in a future release, a migration path will be provided. Existing data remains readable as long as the salt is unchanged.
+`decrypt()` transparently accepts both layouts. Legacy values are always decrypted with the current salt (they pre-date salt versioning). `encrypt()` always produces `v1`. Existing legacy ciphertexts remain decryptable without migration; byte-level WHERE queries on `encryptedAes256fixed` columns, however, require the database to be re-encrypted (see [Upgrading from v3.x to v4.0.0](#upgrading-from-v3x-to-v400)).
+
+## Upgrading from v3.x to v4.0.0
+
+v4.0.0 changes the on-disk format of encrypted values. `decrypt()` accepts both legacy and `v1` formats, but `encrypt()` only produces `v1`. This has two consequences:
+
+- **Reads** (entity hydration, `EntityService::decrypt()`) continue to work on legacy rows without any action.
+- **WHERE queries** on `encryptedAes256fixed` columns (`EntityService::setEncryptedParameter()`) will **not match legacy rows** after the upgrade, because the search parameter is encrypted in `v1` format while the stored value is in legacy format.
+
+To re-encrypt the database in place under the new format:
+
+1. Upgrade the bundle to v4.0.0.
+2. Run `php bin/console precision-soft:doctrine:database:decrypt`. Decryption handles both legacy and `v1` values.
+3. Run `php bin/console precision-soft:doctrine:database:encrypt`. All values are re-written in `v1` format.
+
+After step 3, all WHERE queries on deterministic-encrypted columns work again. Plan for a maintenance window: during step 2 the database contains plaintext data.
 
 ## Custom encryptors
 
@@ -196,6 +335,8 @@ You can replace the built-in encryptor for any Doctrine type by implementing `En
 <?php
 
 declare(strict_types=1);
+
+namespace App\Encryptor;
 
 use PrecisionSoft\Doctrine\Encrypt\Contract\EncryptorInterface;
 use PrecisionSoft\Doctrine\Encrypt\Type\Aes256Type;
@@ -207,7 +348,7 @@ class MyCustomEncryptor implements EncryptorInterface
         return Aes256Type::class;
     }
 
-    public function getTypeName(): ?string
+    public function getTypeName(): string
     {
         return Aes256Type::getFullName();
     }
@@ -229,6 +370,8 @@ If the custom encryptor produces the same ciphertext for the same plaintext acro
 
 declare(strict_types=1);
 
+namespace App\Encryptor;
+
 use PrecisionSoft\Doctrine\Encrypt\Contract\DeterministicEncryptorInterface;
 use PrecisionSoft\Doctrine\Encrypt\Type\Aes256FixedType;
 
@@ -239,7 +382,7 @@ class MyDeterministicEncryptor implements DeterministicEncryptorInterface
         return Aes256FixedType::class;
     }
 
-    public function getTypeName(): ?string
+    public function getTypeName(): string
     {
         return Aes256FixedType::getFullName();
     }

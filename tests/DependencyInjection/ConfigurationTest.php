@@ -29,7 +29,7 @@ final class ConfigurationTest extends TestCase
 
     public function testMinimalValidConfiguration(): void
     {
-        $config = $this->processor->processConfiguration(
+        $processedConfiguration = $this->processor->processConfiguration(
             $this->configuration,
             [
                 [
@@ -38,14 +38,14 @@ final class ConfigurationTest extends TestCase
             ],
         );
 
-        static::assertSame('my-very-long-secret-salt-value-here', $config['salt']);
-        static::assertSame([], $config['enabled_types']);
-        static::assertSame([], $config['encryptors']);
+        static::assertSame('my-very-long-secret-salt-value-here', $processedConfiguration['salt']);
+        static::assertSame([], $processedConfiguration['enabled_types']);
+        static::assertSame([], $processedConfiguration['encryptors']);
     }
 
     public function testFullConfiguration(): void
     {
-        $config = $this->processor->processConfiguration(
+        $processedConfiguration = $this->processor->processConfiguration(
             $this->configuration,
             [
                 [
@@ -56,9 +56,9 @@ final class ConfigurationTest extends TestCase
             ],
         );
 
-        static::assertSame('my-secret-salt-for-full-config-test', $config['salt']);
-        static::assertSame(['encryptedAes256', 'encryptedAes256fixed'], $config['enabled_types']);
-        static::assertSame(['App\\Encryptor\\CustomEncryptor'], $config['encryptors']);
+        static::assertSame('my-secret-salt-for-full-config-test', $processedConfiguration['salt']);
+        static::assertSame(['encryptedAes256', 'encryptedAes256fixed'], $processedConfiguration['enabled_types']);
+        static::assertSame(['App\\Encryptor\\CustomEncryptor'], $processedConfiguration['encryptors']);
     }
 
     public function testSaltIsRequired(): void
@@ -75,7 +75,7 @@ final class ConfigurationTest extends TestCase
 
     public function testEmptyEnabledTypesDefaultsToEmptyArray(): void
     {
-        $config = $this->processor->processConfiguration(
+        $processedConfiguration = $this->processor->processConfiguration(
             $this->configuration,
             [
                 [
@@ -84,12 +84,12 @@ final class ConfigurationTest extends TestCase
             ],
         );
 
-        static::assertSame([], $config['enabled_types']);
+        static::assertSame([], $processedConfiguration['enabled_types']);
     }
 
     public function testEmptyEncryptorsDefaultsToEmptyArray(): void
     {
-        $config = $this->processor->processConfiguration(
+        $processedConfiguration = $this->processor->processConfiguration(
             $this->configuration,
             [
                 [
@@ -98,7 +98,7 @@ final class ConfigurationTest extends TestCase
             ],
         );
 
-        static::assertSame([], $config['encryptors']);
+        static::assertSame([], $processedConfiguration['encryptors']);
     }
 
     public function testTreeBuilderHasCorrectRootName(): void
@@ -111,7 +111,7 @@ final class ConfigurationTest extends TestCase
 
     public function testMultipleConfigsAreMerged(): void
     {
-        $config = $this->processor->processConfiguration(
+        $processedConfiguration = $this->processor->processConfiguration(
             $this->configuration,
             [
                 [
@@ -125,7 +125,78 @@ final class ConfigurationTest extends TestCase
             ],
         );
 
-        static::assertSame('second-salt-long-enough-for-valid', $config['salt']);
-        static::assertSame(['type1', 'type2'], $config['enabled_types']);
+        static::assertSame('second-salt-long-enough-for-valid', $processedConfiguration['salt']);
+        static::assertSame(['type1', 'type2'], $processedConfiguration['enabled_types']);
+    }
+
+    public function testSaltsMapWithCurrentSaltVersion(): void
+    {
+        $processedConfiguration = $this->processor->processConfiguration(
+            $this->configuration,
+            [
+                [
+                    'salts' => [
+                        'v1' => \str_repeat('a', 32),
+                        'v2' => \str_repeat('b', 32),
+                    ],
+                    'current_salt_version' => 'v2',
+                ],
+            ],
+        );
+
+        static::assertNull($processedConfiguration['salt']);
+        static::assertSame(
+            ['v1' => \str_repeat('a', 32), 'v2' => \str_repeat('b', 32)],
+            $processedConfiguration['salts'],
+        );
+        static::assertSame('v2', $processedConfiguration['current_salt_version']);
+    }
+
+    public function testSaltAndSaltsAreMutuallyExclusive(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('mutually exclusive');
+
+        $this->processor->processConfiguration(
+            $this->configuration,
+            [
+                [
+                    'salt' => \str_repeat('a', 32),
+                    'salts' => ['v1' => \str_repeat('b', 32)],
+                    'current_salt_version' => 'v1',
+                ],
+            ],
+        );
+    }
+
+    public function testSaltsRequiresCurrentSaltVersion(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('current_salt_version');
+
+        $this->processor->processConfiguration(
+            $this->configuration,
+            [
+                [
+                    'salts' => ['v1' => \str_repeat('a', 32)],
+                ],
+            ],
+        );
+    }
+
+    public function testCurrentSaltVersionMustReferenceKeyInSalts(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('must reference a key');
+
+        $this->processor->processConfiguration(
+            $this->configuration,
+            [
+                [
+                    'salts' => ['v1' => \str_repeat('a', 32)],
+                    'current_salt_version' => 'does-not-exist',
+                ],
+            ],
+        );
     }
 }

@@ -56,9 +56,6 @@ class EntityService
         return true === isset($encryptionFields[$field]);
     }
 
-    /**
-     * returns true when the field is mapped with an encrypted doctrine type.
-     */
     public function hasEncryption(
         object|string $entity,
         string $field,
@@ -91,11 +88,7 @@ class EntityService
         return $encryptor->decrypt($encryptedData);
     }
 
-    /**
-     * encrypts the given value with the encryptor configured for the field and sets it as a query parameter.
-     *
-     * the field must use a deterministic encryptor such as Aes256FixedType, otherwise the encrypted value changes on each call and the generated WHERE clause will never match.
-     */
+    /** @info the field must use a deterministic encryptor; otherwise the ciphertext varies per call and the generated WHERE clause can never match */
     public function setEncryptedParameter(
         QueryBuilder $queryBuilder,
         string $parameterName,
@@ -120,11 +113,7 @@ class EntityService
         $queryBuilder->setParameter($parameterName, $encryptor->encrypt($value));
     }
 
-    /**
-     * returns true when the raw database value for the given field on the given entity is currently encrypted.
-     *
-     * This performs an additional dbal query to read the raw column value.
-     */
+    /** @info issues a dedicated dbal query to inspect the raw column — callers must weigh the extra round-trip */
     public function hasEncryptedValue(
         object $entity,
         string $field,

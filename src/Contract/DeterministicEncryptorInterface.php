@@ -8,10 +8,5 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Encrypt\Contract;
 
-/**
- * marker interface for encryptors that produce identical ciphertext for identical plaintext.
- *
- * required for use with EntityService::setEncryptedParameter() since non-deterministic encryptors
- * would yield different ciphertexts on each call, causing generated WHERE clauses to never match.
- */
+/** @info marker: implementers must produce identical ciphertext for identical plaintext so the value is usable in WHERE comparisons */
 interface DeterministicEncryptorInterface extends EncryptorInterface {}

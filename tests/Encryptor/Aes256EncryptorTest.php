@@ -67,7 +67,7 @@ final class Aes256EncryptorTest extends TestCase
         $encrypted = $this->aes256Encryptor->encrypt('value');
 
         $parts = \explode("\0", $encrypted);
-        $parts[2] = \base64_encode(\str_repeat('x', 32));
+        $parts[3] = \base64_encode(\str_repeat('x', 32));
         $tampered = \implode("\0", $parts);
 
         $this->expectException(Exception::class);

@@ -34,8 +34,12 @@ final class PrecisionSoftDoctrineEncryptExtensionTest extends TestCase
         );
 
         static::assertSame(
-            'my-secret-salt-for-testing-1234567890',
-            $container->getParameter('precision_soft_doctrine_encrypt.salt'),
+            ['default' => 'my-secret-salt-for-testing-1234567890'],
+            $container->getParameter('precision_soft_doctrine_encrypt.salts_by_version'),
+        );
+        static::assertSame(
+            'default',
+            $container->getParameter('precision_soft_doctrine_encrypt.current_salt_version'),
         );
         static::assertSame(
             ['encryptedAes256'],
@@ -62,8 +66,12 @@ final class PrecisionSoftDoctrineEncryptExtensionTest extends TestCase
         );
 
         static::assertSame(
-            'minimal-salt-value-long-enough-for-test',
-            $container->getParameter('precision_soft_doctrine_encrypt.salt'),
+            ['default' => 'minimal-salt-value-long-enough-for-test'],
+            $container->getParameter('precision_soft_doctrine_encrypt.salts_by_version'),
+        );
+        static::assertSame(
+            'default',
+            $container->getParameter('precision_soft_doctrine_encrypt.current_salt_version'),
         );
         static::assertSame(
             [],
@@ -72,6 +80,34 @@ final class PrecisionSoftDoctrineEncryptExtensionTest extends TestCase
         static::assertSame(
             [],
             $container->getParameter('precision_soft_doctrine_encrypt.encryptors'),
+        );
+    }
+
+    public function testLoadWithMultipleSaltsSetsParameters(): void
+    {
+        $extension = new PrecisionSoftDoctrineEncryptExtension();
+        $container = new ContainerBuilder();
+
+        $extension->load(
+            [
+                [
+                    'salts' => [
+                        'v1' => \str_repeat('a', 32),
+                        'v2' => \str_repeat('b', 32),
+                    ],
+                    'current_salt_version' => 'v2',
+                ],
+            ],
+            $container,
+        );
+
+        static::assertSame(
+            ['v1' => \str_repeat('a', 32), 'v2' => \str_repeat('b', 32)],
+            $container->getParameter('precision_soft_doctrine_encrypt.salts_by_version'),
+        );
+        static::assertSame(
+            'v2',
+            $container->getParameter('precision_soft_doctrine_encrypt.current_salt_version'),
         );
     }
 

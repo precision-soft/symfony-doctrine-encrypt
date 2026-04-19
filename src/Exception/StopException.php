@@ -9,8 +9,7 @@ declare(strict_types=1);
 namespace PrecisionSoft\Doctrine\Encrypt\Exception;
 
 /**
- * used to stop an internal flow, if thrown, it should always be caught within this package.
- *
+ * @info must always be caught inside this package — it is an internal control-flow signal, not a real error
  * @internal
  */
 class StopException extends Exception {}

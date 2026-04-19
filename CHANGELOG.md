@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.0.0] - 2026-04-19
+
+### Breaking Changes
+
+- `AbstractEncryptor::encrypt()` — output format changed from 4 parts to 6 parts: `<ENC>\0v1\0<salt-version>\0<b64-ct>\0<b64-mac>\0<b64-nonce>`. A `v1` format-version field is now inserted after the marker so future format revisions can be rolled out without ambiguity, and a `<salt-version>` field identifies which configured salt was used so multi-salt rotation works end-to-end
+- `AbstractEncryptor::__construct()` — signature widened to `array|string $saltsByVersion, string $currentSaltVersion = AbstractEncryptor::DEFAULT_SALT_VERSION`. Passing a single salt string keeps working (coerced into a one-entry map keyed by `default`); passing an `array<string, string>` enables multi-salt mode. The previous `string $salt` signature is retained via the `array|string` union
+- `AbstractEncryptor` — HMAC input is now a canonical length-prefixed concatenation (`pack('N', len) . value` for each of `version`, `saltVersion`, `algorithm`, `ciphertext`, `nonce`) instead of raw `algorithm . ciphertext . nonce`. This prevents MAC ambiguity between concatenated fields of variable length. Legacy ciphertexts remain verifiable because `decrypt()` routes 4-part payloads to the legacy HMAC formula
+- Re-encrypting existing rows produces different ciphertext/MAC bytes. Any stored ciphertext written by a deterministic encryptor (`Aes256FixedEncryptor`) and used in a WHERE clause must be re-encrypted after upgrade — WHERE queries against legacy 4-part ciphertexts will no longer match values encrypted under v4
+
+### Added
+
+- Multi-salt configuration — first-class support for versioned salt rotation. The bundle config accepts a `salts` map keyed by version, plus `current_salt_version` to pick the active one. The encryptor derives per-version HKDF subkeys, stamps the current version into every new ciphertext, and selects the right subkey automatically on decrypt. Enables online (dual-salt) rotation with no plaintext window. Single-salt setups still use the shorthand `salt` option unchanged
+- `AbstractEncryptor::DEFAULT_SALT_VERSION` — public constant (`'default'`) used as the implicit salt-version identifier when a single salt string is provided
+- `AbstractEncryptor::FORMAT_VERSION_V1` — public constant exposing the current format version identifier (`'v1'`)
+- `AbstractEncryptor::CURRENT_FORMAT_VERSION` — protected constant pointing at the active format version; overridable by subclasses that want to pin or bump the emitted format
+- `AbstractEncryptor::computeMessageAuthenticationCode()` — v1 HMAC over canonical length-prefixed `(version, saltVersion, algorithm, ciphertext, nonce)` input
+- `AbstractEncryptor::computeLegacyMessageAuthenticationCode()` — pre-v1 HMAC (`algorithm . ciphertext . nonce`); retained exclusively for decrypting data written before v4.0.0
+- `Configuration` — new `salts` (map) and `current_salt_version` (scalar) nodes with validation: `salt` and `salts` are mutually exclusive; `current_salt_version` is required when `salts` is used and must reference a key in the map
+- `README.md` — "Multi-salt configuration (for key rotation)" section explaining the versioned-salt config format
+- `README.md` — "Format versioning" section documenting the v1 wire format (including the salt-version field), canonical HMAC input, and legacy compatibility
+- `README.md` — "Upgrading from v3.x to v4.0.0" section with migration steps (decrypt existing rows → re-encrypt to produce v1 ciphertext) and the WHERE-clause caveat for deterministic encryptors
+- `README.md` — expanded "Configuration" section with salt-generation guidance, clarified semantics for the `encryptors` and `enabled_types` options, and a note on multi-manager setups
+- `README.md` — rewrote "Key rotation limitations" as "Secret rotation" covering built-in online rotation (dual-salt) and the offline maintenance-window procedure
+- `README.md` — updated "Security considerations" to reflect per-salt subkey derivation, MAC canonical input including `salt-version`, and the new rotation semantics (dropping a salt makes rows previously written under it unreadable)
+
+### Changed
+
+- `AbstractEncryptor::decrypt()` — transparently reads both 6-part v1 and 4-part legacy payloads; legacy data remains readable without migration and is always decrypted under the currently active salt
+- `AbstractEncryptor::looksEncrypted()` — updated to recognize both 4-part and 6-part shapes when guarding against double-encryption
+- `PrecisionSoftDoctrineEncryptExtension` — emits two parameters (`precision_soft_doctrine_encrypt.salts_by_version` and `precision_soft_doctrine_encrypt.current_salt_version`) that the `AbstractEncryptor` parent service binds to constructor arguments. Shorthand `salt` is transparently expanded into a one-entry map
+
 ## [v3.2.0] - 2026-04-18
 
 ### Added
@@ -252,7 +283,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial public release of `precision-soft/symfony-doctrine-encrypt`
 
-[Unreleased]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v3.1.2...HEAD
+[Unreleased]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v4.0.0...HEAD
+
+[v4.0.0]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v3.2.0...v4.0.0
+
+[v3.2.0]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v3.1.2...v3.2.0
 
 [v3.1.2]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v3.1.1...v3.1.2
 
