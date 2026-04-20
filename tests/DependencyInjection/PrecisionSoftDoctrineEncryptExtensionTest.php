@@ -118,4 +118,72 @@ final class PrecisionSoftDoctrineEncryptExtensionTest extends TestCase
             PrecisionSoftDoctrineEncryptExtension::DOCTRINE_ENCRYPTOR,
         );
     }
+
+    /** @info SDE-152 — single-salt shorthand still sets the legacy_salt_version parameter (pointing at `default`) for the encryptor constructor */
+    public function testSingleSaltSetsLegacySaltVersionToDefault(): void
+    {
+        $extension = new PrecisionSoftDoctrineEncryptExtension();
+        $container = new ContainerBuilder();
+
+        $extension->load(
+            [['salt' => \str_repeat('a', 32)]],
+            $container,
+        );
+
+        static::assertSame(
+            'default',
+            $container->getParameter('precision_soft_doctrine_encrypt.legacy_salt_version'),
+        );
+    }
+
+    /** @info SDE-152 — when no legacy_salt_version is configured alongside a salts map, the extension falls back to the FIRST configured version, NOT the current one */
+    public function testLegacySaltVersionDefaultsToFirstConfiguredVersionWhenNotSupplied(): void
+    {
+        $extension = new PrecisionSoftDoctrineEncryptExtension();
+        $container = new ContainerBuilder();
+
+        $extension->load(
+            [
+                [
+                    'salts' => [
+                        'v1' => \str_repeat('a', 32),
+                        'v2' => \str_repeat('b', 32),
+                    ],
+                    'current_salt_version' => 'v2',
+                ],
+            ],
+            $container,
+        );
+
+        static::assertSame(
+            'v1',
+            $container->getParameter('precision_soft_doctrine_encrypt.legacy_salt_version'),
+        );
+    }
+
+    /** @info SDE-152 — explicit `legacy_salt_version` config threads through to the container parameter */
+    public function testExplicitLegacySaltVersionIsWired(): void
+    {
+        $extension = new PrecisionSoftDoctrineEncryptExtension();
+        $container = new ContainerBuilder();
+
+        $extension->load(
+            [
+                [
+                    'salts' => [
+                        'v1' => \str_repeat('a', 32),
+                        'v2' => \str_repeat('b', 32),
+                    ],
+                    'current_salt_version' => 'v2',
+                    'legacy_salt_version' => 'v1',
+                ],
+            ],
+            $container,
+        );
+
+        static::assertSame(
+            'v1',
+            $container->getParameter('precision_soft_doctrine_encrypt.legacy_salt_version'),
+        );
+    }
 }

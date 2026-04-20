@@ -282,6 +282,171 @@ final class EntityServiceExtendedTest extends AbstractTestCase
         );
     }
 
+    /** @info SDE-153 — the new rotation-safe method produces one ciphertext per active salt version and wires them as an IN-list parameter so WHERE lookups see every epoch's row */
+    public function testSetEncryptedParameterInListEmitsOneCandidatePerSaltVersion(): void
+    {
+        $className = 'App\\Entity\\User';
+        $fieldName = 'email';
+        $plaintext = 'user@example.com';
+
+        $rotatedEncryptor = new Aes256FixedEncryptor(
+            [
+                'v1' => \str_repeat('a', 32),
+                'v2' => \str_repeat('b', 32),
+            ],
+            'v2',
+            'v1',
+        );
+        $originalEncryptor = new Aes256FixedEncryptor(['v1' => \str_repeat('a', 32)], 'v1');
+        $legacyCiphertext = $originalEncryptor->encrypt($plaintext);
+
+        $encryptorFactory = $this->createEncryptorFactoryMock(
+            [Aes256FixedType::getFullName()],
+            $rotatedEncryptor,
+        );
+
+        $classMetadata = Mockery::mock(ClassMetadata::class);
+        $classMetadata->shouldReceive('getFieldNames')
+            ->andReturn([$fieldName]);
+        $classMetadata->shouldReceive('getTypeOfField')
+            ->with($fieldName)
+            ->andReturn(Aes256FixedType::getFullName());
+
+        $classMetadataFactory = Mockery::mock(ClassMetadataFactory::class);
+        $classMetadataFactory->shouldReceive('getMetadataFor')
+            ->with($className)
+            ->andReturn($classMetadata);
+
+        $entityManager = Mockery::mock(EntityManagerInterface::class);
+        $entityManager->shouldReceive('getMetadataFactory')
+            ->andReturn($classMetadataFactory);
+
+        $managerRegistry = Mockery::mock(ManagerRegistry::class);
+        $managerRegistry->shouldReceive('getManager')
+            ->with(null)
+            ->andReturn($entityManager);
+
+        $entityService = new EntityService($managerRegistry, $encryptorFactory);
+
+        $capturedCandidates = null;
+
+        $ormQueryBuilder = Mockery::mock(OrmQueryBuilder::class);
+        $ormQueryBuilder->shouldReceive('setParameter')
+            ->once()
+            ->withArgs(static function (string $name, array $candidates) use (&$capturedCandidates): bool {
+                $capturedCandidates = $candidates;
+
+                return 'email_in_param' === $name;
+            })
+            ->andReturnSelf();
+
+        $returned = $entityService->setEncryptedParameterInList(
+            $ormQueryBuilder,
+            'email_in_param',
+            $className,
+            $fieldName,
+            $plaintext,
+        );
+
+        static::assertCount(2, $returned);
+        static::assertSame($returned, $capturedCandidates);
+        static::assertSame(
+            $legacyCiphertext,
+            $returned[0],
+            'first candidate must match the byte-for-byte ciphertext stored under v1 so pre-rotation rows are found',
+        );
+        static::assertNotSame(
+            $returned[0],
+            $returned[1],
+            'second candidate must differ — otherwise rotation has no effect on nonce derivation',
+        );
+    }
+
+    /** @info SDE-153 — plain candidate listing without DBAL plumbing, for callers that build the WHERE clause themselves */
+    public function testGetDeterministicCiphertextCandidatesReturnsAllEpochCiphertexts(): void
+    {
+        $className = 'App\\Entity\\User';
+        $fieldName = 'email';
+        $plaintext = 'user@example.com';
+
+        $rotatedEncryptor = new Aes256FixedEncryptor(
+            [
+                'v1' => \str_repeat('a', 32),
+                'v2' => \str_repeat('b', 32),
+                'v3' => \str_repeat('c', 32),
+            ],
+            'v3',
+            'v1',
+        );
+
+        $encryptorFactory = $this->createEncryptorFactoryMock(
+            [Aes256FixedType::getFullName()],
+            $rotatedEncryptor,
+        );
+
+        $classMetadata = Mockery::mock(ClassMetadata::class);
+        $classMetadata->shouldReceive('getFieldNames')->andReturn([$fieldName]);
+        $classMetadata->shouldReceive('getTypeOfField')->with($fieldName)->andReturn(Aes256FixedType::getFullName());
+
+        $classMetadataFactory = Mockery::mock(ClassMetadataFactory::class);
+        $classMetadataFactory->shouldReceive('getMetadataFor')->with($className)->andReturn($classMetadata);
+
+        $entityManager = Mockery::mock(EntityManagerInterface::class);
+        $entityManager->shouldReceive('getMetadataFactory')->andReturn($classMetadataFactory);
+
+        $managerRegistry = Mockery::mock(ManagerRegistry::class);
+        $managerRegistry->shouldReceive('getManager')->with(null)->andReturn($entityManager);
+
+        $entityService = new EntityService($managerRegistry, $encryptorFactory);
+
+        $candidates = $entityService->getDeterministicCiphertextCandidates($className, $fieldName, $plaintext);
+
+        static::assertCount(3, $candidates);
+        static::assertSame(
+            $rotatedEncryptor->encryptWithSaltVersion($plaintext, 'v1'),
+            $candidates[0],
+        );
+        static::assertSame(
+            $rotatedEncryptor->encryptWithSaltVersion($plaintext, 'v2'),
+            $candidates[1],
+        );
+        static::assertSame(
+            $rotatedEncryptor->encryptWithSaltVersion($plaintext, 'v3'),
+            $candidates[2],
+        );
+    }
+
+    /** @info SDE-153 — non-deterministic encryptors cannot participate in rotation-safe lookups */
+    public function testGetDeterministicCiphertextCandidatesRejectsNonDeterministicEncryptor(): void
+    {
+        $className = 'App\\Entity\\User';
+        $fieldName = 'email';
+
+        $encryptorFactory = $this->createEncryptorFactoryMock(
+            [Aes256Type::getFullName()],
+            $this->aes256Encryptor,
+        );
+
+        $classMetadata = Mockery::mock(ClassMetadata::class);
+        $classMetadata->shouldReceive('getFieldNames')->andReturn([$fieldName]);
+        $classMetadata->shouldReceive('getTypeOfField')->with($fieldName)->andReturn(Aes256Type::getFullName());
+
+        $classMetadataFactory = Mockery::mock(ClassMetadataFactory::class);
+        $classMetadataFactory->shouldReceive('getMetadataFor')->with($className)->andReturn($classMetadata);
+
+        $entityManager = Mockery::mock(EntityManagerInterface::class);
+        $entityManager->shouldReceive('getMetadataFactory')->andReturn($classMetadataFactory);
+
+        $managerRegistry = Mockery::mock(ManagerRegistry::class);
+        $managerRegistry->shouldReceive('getManager')->with(null)->andReturn($entityManager);
+
+        $entityService = new EntityService($managerRegistry, $encryptorFactory);
+
+        $this->expectException(NonDeterministicEncryptorException::class);
+
+        $entityService->getDeterministicCiphertextCandidates($className, $fieldName, 'x');
+    }
+
     public function testGetEncryptedFieldsCachedOnRepeatedLookup(): void
     {
         $className = 'App\\Entity\\User';

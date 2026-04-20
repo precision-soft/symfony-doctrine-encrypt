@@ -199,4 +199,125 @@ final class ConfigurationTest extends TestCase
             ],
         );
     }
+
+    /** @info SDE-154 — salt-version keys with null bytes would break the wire-format framing; configuration must reject them */
+    public function testSaltVersionKeyWithNullByteRejected(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('salt-version identifiers must match');
+
+        $this->processor->processConfiguration(
+            $this->configuration,
+            [
+                [
+                    'salts' => ["v1\0bad" => \str_repeat('a', 32)],
+                    'current_salt_version' => "v1\0bad",
+                ],
+            ],
+        );
+    }
+
+    /** @info SDE-154 — salt-version keys with whitespace must be rejected */
+    public function testSaltVersionKeyWithSpaceRejected(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('salt-version identifiers must match');
+
+        $this->processor->processConfiguration(
+            $this->configuration,
+            [
+                [
+                    'salts' => ['v 1' => \str_repeat('a', 32)],
+                    'current_salt_version' => 'v 1',
+                ],
+            ],
+        );
+    }
+
+    /** @info SDE-154 — salt-version keys with non-ASCII runes must be rejected */
+    public function testSaltVersionKeyWithNonAsciiRejected(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('salt-version identifiers must match');
+
+        $this->processor->processConfiguration(
+            $this->configuration,
+            [
+                [
+                    'salts' => ['vé' => \str_repeat('a', 32)],
+                    'current_salt_version' => 'vé',
+                ],
+            ],
+        );
+    }
+
+    /** @info SDE-152 — `legacy_salt_version` parses cleanly and must reference a key in the salts map */
+    public function testLegacySaltVersionMustReferenceKeyInSalts(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('`legacy_salt_version` must reference a key');
+
+        $this->processor->processConfiguration(
+            $this->configuration,
+            [
+                [
+                    'salts' => ['v1' => \str_repeat('a', 32), 'v2' => \str_repeat('b', 32)],
+                    'current_salt_version' => 'v2',
+                    'legacy_salt_version' => 'missing',
+                ],
+            ],
+        );
+    }
+
+    /** @info SDE-152 — the happy path where `legacy_salt_version` is accepted and stored */
+    public function testLegacySaltVersionParsedFromConfiguration(): void
+    {
+        $processedConfiguration = $this->processor->processConfiguration(
+            $this->configuration,
+            [
+                [
+                    'salts' => ['v1' => \str_repeat('a', 32), 'v2' => \str_repeat('b', 32)],
+                    'current_salt_version' => 'v2',
+                    'legacy_salt_version' => 'v1',
+                ],
+            ],
+        );
+
+        static::assertSame('v1', $processedConfiguration['legacy_salt_version']);
+    }
+
+    /** @info SDE-152 — `legacy_salt_version` has no meaning under the single-salt `salt` shorthand and must be rejected there */
+    public function testLegacySaltVersionRejectedWithSingleSaltShorthand(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('`legacy_salt_version` requires `salts`');
+
+        $this->processor->processConfiguration(
+            $this->configuration,
+            [
+                [
+                    'salt' => \str_repeat('a', 32),
+                    'legacy_salt_version' => 'v1',
+                ],
+            ],
+        );
+    }
+
+    /** @info SDE-154 — salt-version identifiers containing a dot (e.g. `v1.0`, `2026.04`) are accepted */
+    public function testSaltVersionKeyWithDotAccepted(): void
+    {
+        $processedConfiguration = $this->processor->processConfiguration(
+            $this->configuration,
+            [
+                [
+                    'salts' => ['v1.0' => \str_repeat('a', 32), '2026.04' => \str_repeat('b', 32)],
+                    'current_salt_version' => '2026.04',
+                    'legacy_salt_version' => 'v1.0',
+                ],
+            ],
+        );
+
+        static::assertSame('2026.04', $processedConfiguration['current_salt_version']);
+        static::assertSame('v1.0', $processedConfiguration['legacy_salt_version']);
+    }
 }

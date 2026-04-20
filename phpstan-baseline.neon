@@ -171,7 +171,7 @@ parameters:
 		-
 			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:andReturn\(\)\.$#'
 			identifier: method.notFound
-			count: 11
+			count: 17
 			path: tests/Service/EntityServiceExtendedTest.php
 
 		-
@@ -189,13 +189,13 @@ parameters:
 		-
 			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:once\(\)\.$#'
 			identifier: method.notFound
-			count: 10
+			count: 11
 			path: tests/Service/EntityServiceExtendedTest.php
 
 		-
 			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:with\(\)\.$#'
 			identifier: method.notFound
-			count: 16
+			count: 25
 			path: tests/Service/EntityServiceExtendedTest.php
 
 		-
@@ -213,13 +213,19 @@ parameters:
 		-
 			message: '#^Parameter \#1 \$managerRegistry of class PrecisionSoft\\Doctrine\\Encrypt\\Service\\EntityService constructor expects Doctrine\\Persistence\\ManagerRegistry, Mockery\\MockInterface given\.$#'
 			identifier: argument.type
-			count: 5
+			count: 8
 			path: tests/Service/EntityServiceExtendedTest.php
 
 		-
 			message: '#^Parameter \#1 \$queryBuilder of method PrecisionSoft\\Doctrine\\Encrypt\\Service\\EntityService\:\:setEncryptedParameter\(\) expects Doctrine\\ORM\\QueryBuilder, Mockery\\MockInterface given\.$#'
 			identifier: argument.type
 			count: 3
+			path: tests/Service/EntityServiceExtendedTest.php
+
+		-
+			message: '#^Parameter \#1 \$queryBuilder of method PrecisionSoft\\Doctrine\\Encrypt\\Service\\EntityService\:\:setEncryptedParameterInList\(\) expects Doctrine\\ORM\\QueryBuilder, Mockery\\MockInterface given\.$#'
+			identifier: argument.type
+			count: 1
 			path: tests/Service/EntityServiceExtendedTest.php
 
 		-

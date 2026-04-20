@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.1.0] - 2026-04-20 - Legacy-salt routing, deterministic rotation, and salt-version validation
+
+### Added
+
+- `AbstractEncryptor::__construct()` — new optional `?string $legacySaltVersion = null` parameter (third argument) identifying which salt-version key to use when decrypting legacy 4-part payloads. Defaults to the first key in `$saltsByVersion` so existing single-salt configs decrypt legacy data without change
+- `AbstractEncryptor::encryptWithSaltVersion()` — public method producing a v1 payload stamped with an explicit salt-version, so deterministic lookups can enumerate candidate ciphertexts across all active versions
+- `AbstractEncryptor::getActiveSaltVersions()` — returns the configured salt-version identifiers in declaration order, used by the deterministic WHERE-IN helper
+- `AbstractEncryptor::generateNonceForSaltVersion()` — protected hook letting deterministic subclasses derive a per-version nonce (keyed by `nonceKeysBySaltVersion[saltVersion]`) so each salt epoch produces a distinct deterministic nonce
+- `EntityService::setEncryptedParameterInList()` — binds a deterministic query parameter as an `IN (...)` of per-salt-version ciphertext candidates, so WHERE clauses against deterministic fields continue to match across rotation
+- `EntityService::getDeterministicCiphertextCandidates()` — produces the candidate list for manual `IN (...)` construction
+- `Configuration` — new `legacy_salt_version` node (optional, falls back to the first key in `salts`); enforces the salt-version regex at config time
+- `AbstractEncryptor::SALT_VERSION_PATTERN` — `/^[A-Za-z0-9_.-]{1,32}$/` validation of salt-version identifiers at construction and via the Configuration node; dots are permitted so version identifiers like `v1.0` or `2026.04` are accepted
+- `Configuration` — rejects `legacy_salt_version` when combined with the single-salt `salt` shorthand; the option only makes sense with the multi-salt `salts` map
+- `tests/Encryptor/RotationTest.php` — 16 cases covering legacy-decrypt, multi-salt rotation, deterministic-IN enumeration, and salt-version validation
+
+### Changed
+
+- `Aes256FixedEncryptor` — deterministic nonce derivation is now per-salt-version so the same plaintext under different salt epochs produces distinct ciphertext. Single-salt deployments are byte-identical (nonce key resolves to the current-version entry)
+- `AbstractEncryptor::deriveKey()` — renamed first parameter `$salt` to `$masterKey` with an `@info` docblock clarifying that the bundle's "salt" config value is the HKDF IKM and the HKDF salt parameter is intentionally empty
+- `src/Resources/config/services.php` / `PrecisionSoftDoctrineEncryptExtension` — wire the new `legacy_salt_version` parameter into the encryptor parent service
+
 ## [v4.0.0] - 2026-04-19
 
 ### Breaking Changes
@@ -64,13 +85,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PrecisionSoftDoctrineEncryptBundle::registerTypes()` — added `\assert(\is_a($typeClass, Type::class, true))` before `Type::addType()` for static analyzer type refinement
 - `phpstan-baseline.neon` — shrunk by ~60 entries after adding generic type annotations on `ClassMetadata<object>`, `EntityRepository<object>`, and `int<1, max>` on `AbstractEncryptor::getInitialVectorLength()`
 
-## [v3.1.2] - 2026-04-14
-
-### Fixed
-
-- `EntityService::hasEncryptedValue()` now returns `false` immediately when any identifier value is `null`, preventing `WHERE NULL` conditions for unsaved entities
-- `AbstractDatabaseCommand::applyKeysetPagination()` now skips `null` identifier values instead of emitting null comparison conditions
-
 ## [v3.1.1] - 2026-04-14
 
 ### Changed
@@ -96,7 +110,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `AbstractEncryptor` — `$mac` renamed to `$messageAuthenticationCode`; `$info` parameter renamed to `$information`
 - `AbstractEncryptor` — removed `final` from `getTypeName()`
-- `AbstractEncryptor` — `resetEncryptorsToFake()`, `restoreEncryptors()`, `getQuestionText()` visibility widened from `private` to `protected`
+- `AbstractDatabaseCommand` — `resetEncryptorsToFake()`, `restoreEncryptors()`, `getQuestionText()` visibility widened from `private` to `protected`
 - `EncryptorFactory::getType()` — `$dbalType` renamed to `$type`
 - `AbstractType` — removed `final` from `getFullName()`, `getEncryptor()`, `setEncryptor()`, `convertToDatabaseValue()`, `convertToPHPValue()`
 - `AbstractType` — `validate()` visibility widened from `private` to `protected`
@@ -193,7 +207,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Renamed `phpunit.xml` to `phpunit.xml.dist`
 - Quote `$COMPOSER_DEV_MODE` variable in `composer.json` hook script
 
-## [v2.2.4] - 2026-03-21
+## [v2.2.4] - 2026-03-20
 
 ### Fixed
 
@@ -201,9 +215,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v2.2.3] - 2026-03-19
 
-### Fixed
+### Changed
 
-- README — fix formatting and usage examples
+- `AbstractEncryptor` — extracted shared `encrypt()` and `decrypt()` logic from `AES256Encryptor` and `AES256FixedEncryptor`; both encryptors now delegate entirely to the base class
+- `AbstractEncryptor::generateNonce()` declared `abstract`
+- `AES256Encryptor` / `AES256FixedEncryptor` — removed duplicated encrypt/decrypt/constructor logic; now only implement `getTypeClass()` and `generateNonce()`
 
 ## [v2.2.2] - 2026-03-19
 
@@ -213,10 +229,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `AbstractEncryptor` — extracted shared `encrypt()` and `decrypt()` logic from `AES256Encryptor` and `AES256FixedEncryptor`; both encryptors now delegate entirely to the base class
 - `AbstractEncryptor::getTypeClass()` declared `abstract`
-- `AbstractEncryptor::generateNonce()` declared `abstract`
-- `AES256Encryptor` / `AES256FixedEncryptor` — removed duplicated encrypt/decrypt/constructor logic; now only implement `getTypeClass()` and `generateNonce()`
 
 ## [v2.2.1] - 2026-03-19
 
@@ -283,13 +296,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial public release of `precision-soft/symfony-doctrine-encrypt`
 
-[Unreleased]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v4.0.0...HEAD
+[Unreleased]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v4.1.0...HEAD
+
+[v4.1.0]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v4.0.0...v4.1.0
 
 [v4.0.0]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v3.2.0...v4.0.0
 
-[v3.2.0]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v3.1.2...v3.2.0
-
-[v3.1.2]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v3.1.1...v3.1.2
+[v3.2.0]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v3.1.1...v3.2.0
 
 [v3.1.1]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v3.1.0...v3.1.1
 

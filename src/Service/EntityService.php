@@ -17,6 +17,7 @@ use PrecisionSoft\Doctrine\Encrypt\Contract\DeterministicEncryptorInterface;
 use PrecisionSoft\Doctrine\Encrypt\Contract\EncryptorInterface;
 use PrecisionSoft\Doctrine\Encrypt\Dto\EntityMetadataDto;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\AbstractEncryptor;
+use PrecisionSoft\Doctrine\Encrypt\Exception\Exception;
 use PrecisionSoft\Doctrine\Encrypt\Exception\FieldNotEncryptedException;
 use PrecisionSoft\Doctrine\Encrypt\Exception\NonDeterministicEncryptorException;
 
@@ -97,12 +98,71 @@ class EntityService
         string $value,
         ?string $managerName = null,
     ): void {
+        $encryptor = $this->getDeterministicEncryptor($class, $field, $managerName);
+
+        $queryBuilder->setParameter($parameterName, $encryptor->encrypt($value));
+    }
+
+    /**
+     * @info rotation-safe variant of setEncryptedParameter: materialises one ciphertext per active salt version so `WHERE field IN (:param)` matches rows encrypted under previous salts as well as rows encrypted under the current one — see SDE-153
+     *
+     * @return list<string> the ciphertext candidates, in configured salt-version order
+     */
+    public function setEncryptedParameterInList(
+        QueryBuilder $queryBuilder,
+        string $parameterName,
+        string $class,
+        string $field,
+        string $value,
+        ?string $managerName = null,
+    ): array {
+        $candidates = $this->getDeterministicCiphertextCandidates($class, $field, $value, $managerName);
+
+        $queryBuilder->setParameter($parameterName, $candidates);
+
+        return $candidates;
+    }
+
+    /**
+     * @info emits one deterministic ciphertext per active salt version so callers can build rotation-safe `IN (...)` lookups without leaking bundle internals; caller is responsible for placing these into their query
+     *
+     * @return list<string>
+     */
+    public function getDeterministicCiphertextCandidates(
+        string $class,
+        string $field,
+        string $value,
+        ?string $managerName = null,
+    ): array {
+        $encryptor = $this->getDeterministicEncryptor($class, $field, $managerName);
+
+        if (false === ($encryptor instanceof AbstractEncryptor)) {
+            throw new Exception(\sprintf(
+                'encryptor %s must extend AbstractEncryptor to support multi-salt rotation lookups',
+                $encryptor::class,
+            ));
+        }
+
+        $candidates = [];
+
+        foreach ($encryptor->getActiveSaltVersions() as $saltVersion) {
+            $candidates[] = $encryptor->encryptWithSaltVersion($value, $saltVersion);
+        }
+
+        return $candidates;
+    }
+
+    private function getDeterministicEncryptor(
+        string $class,
+        string $field,
+        ?string $managerName = null,
+    ): DeterministicEncryptorInterface {
         $encryptor = $this->getEncryptor($class, $field, $managerName);
 
         if (false === ($encryptor instanceof DeterministicEncryptorInterface)) {
             throw new NonDeterministicEncryptorException(
                 \sprintf(
-                    'field %s::%s uses a non-deterministic encryptor (%s); setEncryptedParameter requires a DeterministicEncryptorInterface implementation',
+                    'field %s::%s uses a non-deterministic encryptor (%s); deterministic lookups require a DeterministicEncryptorInterface implementation',
                     $class,
                     $field,
                     $encryptor::class,
@@ -110,7 +170,7 @@ class EntityService
             );
         }
 
-        $queryBuilder->setParameter($parameterName, $encryptor->encrypt($value));
+        return $encryptor;
     }
 
     /** @info issues a dedicated dbal query to inspect the raw column — callers must weigh the extra round-trip */
