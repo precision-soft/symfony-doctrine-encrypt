@@ -1,7 +1,7 @@
 {
     "name": "precision-soft/symfony-doctrine-encrypt",
     "type": "symfony-bundle",
-    "description": "doctrine encrypt type",
+    "description": "Symfony bundle providing transparent AES-256 encryption for Doctrine ORM entity fields via custom DBAL types",
     "keywords": [
         "symfony",
         "doctrine",

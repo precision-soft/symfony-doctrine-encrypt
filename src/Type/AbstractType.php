@@ -15,7 +15,7 @@ use PrecisionSoft\Doctrine\Encrypt\Exception\Exception;
 
 abstract class AbstractType extends StringType
 {
-    private const DEFAULT_LENGTH = 1000;
+    protected const DEFAULT_LENGTH = 1000;
 
     private ?EncryptorInterface $encryptor = null;
 
@@ -29,7 +29,7 @@ abstract class AbstractType extends StringType
     public function getSQLDeclaration(array $column, AbstractPlatform $platform): string
     {
         if (false === isset($column['length'])) {
-            $column['length'] = self::DEFAULT_LENGTH;
+            $column['length'] = static::DEFAULT_LENGTH;
         }
 
         return parent::getSQLDeclaration($column, $platform);

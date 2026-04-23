@@ -52,7 +52,7 @@ abstract class AbstractEncryptor implements EncryptorInterface
         ?string $legacySaltVersion = null,
     ) {
         if (true === \is_string($saltsByVersion)) {
-            $saltsByVersion = [self::DEFAULT_SALT_VERSION => $saltsByVersion];
+            $saltsByVersion = [static::DEFAULT_SALT_VERSION => $saltsByVersion];
         }
 
         if ([] === $saltsByVersion) {
@@ -68,8 +68,8 @@ abstract class AbstractEncryptor implements EncryptorInterface
         $nonceKeys = [];
 
         foreach ($saltsByVersion as $saltVersion => $salt) {
-            if (1 !== \preg_match(self::SALT_VERSION_PATTERN, (string)$saltVersion)) {
-                throw new Exception(\sprintf('invalid salt version identifier `%s` — must match %s', (string)$saltVersion, self::SALT_VERSION_PATTERN));
+            if (1 !== \preg_match(static::SALT_VERSION_PATTERN, (string)$saltVersion)) {
+                throw new Exception(\sprintf('invalid salt version identifier `%s` — must match %s', (string)$saltVersion, static::SALT_VERSION_PATTERN));
             }
 
             if (\strlen($salt) < static::MINIMUM_KEY_LENGTH) {
@@ -165,7 +165,7 @@ abstract class AbstractEncryptor implements EncryptorInterface
         return \implode(
             static::GLUE,
             [
-                self::ENCRYPTION_MARKER,
+                static::ENCRYPTION_MARKER,
                 static::CURRENT_FORMAT_VERSION,
                 $saltVersion,
                 \base64_encode($ciphertext),
@@ -177,7 +177,7 @@ abstract class AbstractEncryptor implements EncryptorInterface
 
     public function decrypt(string $data): string
     {
-        if (false === \str_starts_with($data, self::ENCRYPTION_MARKER . static::GLUE)) {
+        if (false === \str_starts_with($data, static::ENCRYPTION_MARKER . static::GLUE)) {
             return $data;
         }
 
@@ -303,23 +303,23 @@ abstract class AbstractEncryptor implements EncryptorInterface
 
     protected function looksEncrypted(string $data): bool
     {
-        if (false === \str_starts_with($data, self::ENCRYPTION_MARKER . static::GLUE)) {
+        if (false === \str_starts_with($data, static::ENCRYPTION_MARKER . static::GLUE)) {
             return false;
         }
 
-        $parts = \explode(static::GLUE, $data);
-        $count = \count($parts);
+        $encryptedParts = \explode(static::GLUE, $data);
+        $partCount = \count($encryptedParts);
 
-        if (6 === $count) {
-            return false !== \base64_decode($parts[3], true)
-                && false !== \base64_decode($parts[4], true)
-                && false !== \base64_decode($parts[5], true);
+        if (6 === $partCount) {
+            return false !== \base64_decode($encryptedParts[3], true)
+                && false !== \base64_decode($encryptedParts[4], true)
+                && false !== \base64_decode($encryptedParts[5], true);
         }
 
-        if (4 === $count) {
-            return false !== \base64_decode($parts[1], true)
-                && false !== \base64_decode($parts[2], true)
-                && false !== \base64_decode($parts[3], true);
+        if (4 === $partCount) {
+            return false !== \base64_decode($encryptedParts[1], true)
+                && false !== \base64_decode($encryptedParts[2], true)
+                && false !== \base64_decode($encryptedParts[3], true);
         }
 
         return false;

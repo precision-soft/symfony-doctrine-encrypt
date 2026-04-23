@@ -7,7 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.2.0] - 2026-04-23 - Late-static-binding and library-extensibility fixes
+
+### Changed
+
+- `AbstractEncryptor` — switched `self::ENCRYPTION_MARKER`, `self::SALT_VERSION_PATTERN`, and `self::DEFAULT_SALT_VERSION` to `static::` inside `decrypt()`, `encryptWithSaltVersion()`, `looksEncrypted()`, and the constructor body, so subclasses that override these public constants are honored. Byte-identical behavior for the base class; the default-parameter reference still uses `self::` because PHP 8.2 does not allow `static::` in default parameter values
+- `AbstractEncryptor::looksEncrypted()` — locals renamed `$parts` → `$encryptedParts` and `$count` → `$partCount` for consistency with `decrypt()` in the same class
+- `Aes256FixedEncryptor::generateNonceForSaltVersion()` — hardcoded `'sha256'` string replaced with `static::HASH_ALGORITHM` so subclasses that override the hash algorithm are honored; byte-identical behavior for the base class
+- `PrecisionSoftDoctrineEncryptBundle::registerTypes()` — two adjacent floating docblocks (`@info` and `@var`) merged into a single docblock attached to `$encryptorFactory`
+- `README.md` — `EntityService` API table updated to show `getEntitiesWithEncryption(managerName?)` matching the renamed parameter
+- `README.md` — service-tag reference corrected from `precision_soft.doctrine.encrypt.encryptor` (wrong separators and extra segment) to the actual tag `precision-soft.doctrine.encryptor` as defined by `PrecisionSoftDoctrineEncryptExtension::DOCTRINE_ENCRYPTOR`
+- `composer.json` — `description` field expanded from the placeholder `doctrine encrypt type` to a descriptive one-liner for Packagist listings (`Symfony bundle providing transparent AES-256 encryption for Doctrine ORM entity fields via custom DBAL types`)
+- `AbstractType::getSQLDeclaration()` — switched `self::DEFAULT_LENGTH` to `static::DEFAULT_LENGTH` for the same reason
+- `AbstractDatabaseCommand` — switched `self::OPTION_MANAGER` and `self::BATCH_SIZE` to `static::` inside `configure()`, `getManagerName()`, and `processEntities()`
+- `EntityService::getEntitiesWithEncryption()` — parameter renamed from `$manager` to `$managerName` for consistency with every other method in the class (the bare `$manager` was the last odd one out). Positional callers are unaffected; named-argument callers (`getEntitiesWithEncryption(manager: '…')`) must update the keyword
+- `CHANGELOG.md` — every historical entry now carries a `## [vX.Y.Z] - YYYY-MM-DD - Title` heading conforming to the precision-soft audit format; section ordering normalized per entry to the canonical `Breaking Changes → Fixed → Changed → Added → Deprecated → Removed`; `v2.2.4` release date corrected (`2026-03-20` → `2026-03-21`) to match the actual tag date; `v1.0.0` `### Notes` subsection dropped
+
+### Added
+
+- `AbstractType::DEFAULT_LENGTH` — visibility widened from `private` to `protected` so subclasses can override the default column length used when no explicit length is configured
+- `AbstractDatabaseCommand::BATCH_SIZE` — visibility widened from `private` to `protected` so subclasses can tune the bulk-operation batch size
+- `EntityService::getDeterministicEncryptor()` — visibility widened from `private` to `protected` for subclass extensibility (matches the v3.1.0 widening pattern across the rest of `EntityService`)
+
 ## [v4.1.0] - 2026-04-20 - Legacy-salt routing, deterministic rotation, and salt-version validation
+
+### Changed
+
+- `Aes256FixedEncryptor` — deterministic nonce derivation is now per-salt-version so the same plaintext under different salt epochs produces distinct ciphertext. Single-salt deployments are byte-identical (nonce key resolves to the current-version entry)
+- `AbstractEncryptor::deriveKey()` — renamed first parameter `$salt` to `$masterKey` with an `@info` docblock clarifying that the bundle's "salt" config value is the HKDF IKM and the HKDF salt parameter is intentionally empty
+- `src/Resources/config/services.php` / `PrecisionSoftDoctrineEncryptExtension` — wire the new `legacy_salt_version` parameter into the encryptor parent service
 
 ### Added
 
@@ -22,13 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Configuration` — rejects `legacy_salt_version` when combined with the single-salt `salt` shorthand; the option only makes sense with the multi-salt `salts` map
 - `tests/Encryptor/RotationTest.php` — 16 cases covering legacy-decrypt, multi-salt rotation, deterministic-IN enumeration, and salt-version validation
 
-### Changed
-
-- `Aes256FixedEncryptor` — deterministic nonce derivation is now per-salt-version so the same plaintext under different salt epochs produces distinct ciphertext. Single-salt deployments are byte-identical (nonce key resolves to the current-version entry)
-- `AbstractEncryptor::deriveKey()` — renamed first parameter `$salt` to `$masterKey` with an `@info` docblock clarifying that the bundle's "salt" config value is the HKDF IKM and the HKDF salt parameter is intentionally empty
-- `src/Resources/config/services.php` / `PrecisionSoftDoctrineEncryptExtension` — wire the new `legacy_salt_version` parameter into the encryptor parent service
-
-## [v4.0.0] - 2026-04-19
+## [v4.0.0] - 2026-04-19 - Multi-salt rotation, v1 wire format, and canonical HMAC
 
 ### Breaking Changes
 
@@ -36,6 +58,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `AbstractEncryptor::__construct()` — signature widened to `array|string $saltsByVersion, string $currentSaltVersion = AbstractEncryptor::DEFAULT_SALT_VERSION`. Passing a single salt string keeps working (coerced into a one-entry map keyed by `default`); passing an `array<string, string>` enables multi-salt mode. The previous `string $salt` signature is retained via the `array|string` union
 - `AbstractEncryptor` — HMAC input is now a canonical length-prefixed concatenation (`pack('N', len) . value` for each of `version`, `saltVersion`, `algorithm`, `ciphertext`, `nonce`) instead of raw `algorithm . ciphertext . nonce`. This prevents MAC ambiguity between concatenated fields of variable length. Legacy ciphertexts remain verifiable because `decrypt()` routes 4-part payloads to the legacy HMAC formula
 - Re-encrypting existing rows produces different ciphertext/MAC bytes. Any stored ciphertext written by a deterministic encryptor (`Aes256FixedEncryptor`) and used in a WHERE clause must be re-encrypted after upgrade — WHERE queries against legacy 4-part ciphertexts will no longer match values encrypted under v4
+
+### Changed
+
+- `AbstractEncryptor::decrypt()` — transparently reads both 6-part v1 and 4-part legacy payloads; legacy data remains readable without migration and is always decrypted under the currently active salt
+- `AbstractEncryptor::looksEncrypted()` — updated to recognize both 4-part and 6-part shapes when guarding against double-encryption
+- `PrecisionSoftDoctrineEncryptExtension` — emits two parameters (`precision_soft_doctrine_encrypt.salts_by_version` and `precision_soft_doctrine_encrypt.current_salt_version`) that the `AbstractEncryptor` parent service binds to constructor arguments. Shorthand `salt` is transparently expanded into a one-entry map
 
 ### Added
 
@@ -53,20 +81,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `README.md` — rewrote "Key rotation limitations" as "Secret rotation" covering built-in online rotation (dual-salt) and the offline maintenance-window procedure
 - `README.md` — updated "Security considerations" to reflect per-salt subkey derivation, MAC canonical input including `salt-version`, and the new rotation semantics (dropping a salt makes rows previously written under it unreadable)
 
-### Changed
-
-- `AbstractEncryptor::decrypt()` — transparently reads both 6-part v1 and 4-part legacy payloads; legacy data remains readable without migration and is always decrypted under the currently active salt
-- `AbstractEncryptor::looksEncrypted()` — updated to recognize both 4-part and 6-part shapes when guarding against double-encryption
-- `PrecisionSoftDoctrineEncryptExtension` — emits two parameters (`precision_soft_doctrine_encrypt.salts_by_version` and `precision_soft_doctrine_encrypt.current_salt_version`) that the `AbstractEncryptor` parent service binds to constructor arguments. Shorthand `salt` is transparently expanded into a one-entry map
-
-## [v3.2.0] - 2026-04-18
-
-### Added
-
-- `Contract\DeterministicEncryptorInterface` — marker interface for encryptors that produce identical ciphertext for identical plaintext. Implemented by `Aes256FixedEncryptor`. Required for `EntityService::setEncryptedParameter()`
-- `Exception\NonDeterministicEncryptorException` — thrown by `EntityService::setEncryptedParameter()` when the field's encryptor does not implement `DeterministicEncryptorInterface`, preventing WHERE clauses that would never match
-- `README.md` — "Security considerations" entry describing cipher (AES-256-CTR), key derivation (HKDF-SHA256 with per-purpose info strings), and authentication (HMAC-SHA256)
-- `README.md` — custom encryptor example demonstrating how to implement `DeterministicEncryptorInterface` for WHERE-compatible encryptors
+## [v3.2.0] - 2026-04-18 - Deterministic encryptor interface and WHERE-query support
 
 ### Fixed
 
@@ -85,7 +100,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PrecisionSoftDoctrineEncryptBundle::registerTypes()` — added `\assert(\is_a($typeClass, Type::class, true))` before `Type::addType()` for static analyzer type refinement
 - `phpstan-baseline.neon` — shrunk by ~60 entries after adding generic type annotations on `ClassMetadata<object>`, `EntityRepository<object>`, and `int<1, max>` on `AbstractEncryptor::getInitialVectorLength()`
 
-## [v3.1.1] - 2026-04-14
+### Added
+
+- `Contract\DeterministicEncryptorInterface` — marker interface for encryptors that produce identical ciphertext for identical plaintext. Implemented by `Aes256FixedEncryptor`. Required for `EntityService::setEncryptedParameter()`
+- `Exception\NonDeterministicEncryptorException` — thrown by `EntityService::setEncryptedParameter()` when the field's encryptor does not implement `DeterministicEncryptorInterface`, preventing WHERE clauses that would never match
+- `README.md` — "Security considerations" entry describing cipher (AES-256-CTR), key derivation (HKDF-SHA256 with per-purpose info strings), and authentication (HMAC-SHA256)
+- `README.md` — custom encryptor example demonstrating how to implement `DeterministicEncryptorInterface` for WHERE-compatible encryptors
+
+## [v3.1.1] - 2026-04-14 - Command execution template and type refinement
 
 ### Changed
 
@@ -98,7 +120,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `AbstractEncryptor::__debugInfo()` — relocated immediately after the constructor for declaration ordering consistency
 - `composer.lock` — bumped `precision-soft/symfony-console` to `v4.2.1`, `precision-soft/symfony-phpunit` to `v3.2.1`, `phpstan/phpstan` to `2.1.47`
 
-## [v3.1.0] - 2026-04-13
+## [v3.1.0] - 2026-04-13 - Visibility widening, variable renaming, and test modernization
 
 ### Fixed
 
@@ -120,7 +142,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `EntityService` — `getEncryptedFields()`, `getFieldsForClassMetadata()` visibility widened from `private` to `protected`
 - 2 Mockery-based test classes migrated to `AbstractTestCase` (EntityServiceExtendedTest, AbstractDatabaseCommandTest)
 
-## [v3.0.2] - 2026-04-10
+## [v3.0.2] - 2026-04-10 - Encryption marker detection and database command hardening
 
 ### Fixed
 
@@ -129,18 +151,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `AbstractDatabaseCommand::processEntities()` — move encryptor swap/restore outside the batch loop into a single `finally` block; prevents premature restore after each batch iteration
 - `DatabaseDecryptCommand` / `DatabaseEncryptCommand` — catch `Throwable` instead of `Exception` to capture all errors, including `RuntimeException`
 
-### Added
-
-- `AbstractEncryptor::__debugInfo()` — returns only algorithm name, preventing sensitive key material from leaking in debug/dump output
-- `AbstractEncryptor::$initialVectorLengthCache` — caches `openssl_cipher_iv_length()` result to avoid repeated calls per encrypt/decrypt operation
-
 ### Changed
 
 - `AbstractEncryptor::GLUE` — visibility widened from `protected` to `public`; accessible to `EntityService` and external code without class extension
 - `EncryptorFactory` — PHPDoc `@param string[]` → `@param class-string[]` for `$enabledEncryptors`
 - `composer.lock` — bumped `precision-soft/symfony-console` to `v4.1.2`, `precision-soft/symfony-phpunit` to `v3.1.1`
 
-## [v3.0.1] - 2026-04-08
+### Added
+
+- `AbstractEncryptor::__debugInfo()` — returns only algorithm name, preventing sensitive key material from leaking in debug/dump output
+- `AbstractEncryptor::$initialVectorLengthCache` — caches `openssl_cipher_iv_length()` result to avoid repeated calls per encrypt/decrypt operation
+
+## [v3.0.1] - 2026-04-08 - IV length accessor rename and configuration simplification
 
 ### Fixed
 
@@ -151,7 +173,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `AbstractEncryptor::getIvLength()` renamed to `getInitialVectorLength()` — zero-abbreviation naming consistency; affects subclasses that override this method
 - `Configuration::getConfigTreeBuilder()` — simplified tree builder, removed redundant chained `->end()` calls on scalar prototype and array nodes
 
-## [v3.0.0] - 2026-04-07
+## [v3.0.0] - 2026-04-07 - HKDF key derivation, CamelCase naming, and DBAL 4 only
 
 ### Breaking Changes
 
@@ -182,16 +204,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PrecisionSoftDoctrineEncryptBundle` — add null container guards in `boot()` and `registerTypes()`
 - `EntityService::hasEncryptor()` — explicit `true === isset()` instead of implicit boolean
 
-### Added
-
-- `AbstractEncryptor::getIvLength()` — extracted IV length retrieval with false/zero guard; throws `Exception` when `openssl_cipher_iv_length()` returns `false` or `0`
-- `AbstractDatabaseCommand::processEntities()` — template method replacing duplicated `encrypt`/`decrypt` loops; manages progress bar, entity manager lifecycle, and encryptor swapping
-- `AbstractDatabaseCommand::applyKeysetPagination()` — keyset pagination support for both single and composite primary keys
-- `Configuration` — salt validation: minimum 32 characters enforced at bundle configuration time
-- `EncryptorFactory` — `encryptorsByTypeName` lookup cache for O(1) encryptor resolution by type name
-- PHPStan level 8 with baseline
-- Test classes: `ConfigurationTest`, `PrecisionSoftDoctrineEncryptExtensionTest`, `EntityMetadataDtoTest`, `AbstractEncryptorCryptoTest`, `AbstractDatabaseCommandTest`, `Aes256EncryptorTest`, `AbstractTypeTest`, `ExceptionTest`, `EncryptorFactoryExtendedTest`, `EntityServiceExtendedTest`, `PrecisionSoftDoctrineEncryptBundleTest`
-
 ### Changed
 
 - Upgrade from PHPUnit 9 to PHPUnit 11.5 via `precision-soft/symfony-phpunit: ^3.0`
@@ -207,13 +219,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Renamed `phpunit.xml` to `phpunit.xml.dist`
 - Quote `$COMPOSER_DEV_MODE` variable in `composer.json` hook script
 
-## [v2.2.4] - 2026-03-20
+### Added
+
+- `AbstractEncryptor::getIvLength()` — extracted IV length retrieval with false/zero guard; throws `Exception` when `openssl_cipher_iv_length()` returns `false` or `0`
+- `AbstractDatabaseCommand::processEntities()` — template method replacing duplicated `encrypt`/`decrypt` loops; manages progress bar, entity manager lifecycle, and encryptor swapping
+- `AbstractDatabaseCommand::applyKeysetPagination()` — keyset pagination support for both single and composite primary keys
+- `Configuration` — salt validation: minimum 32 characters enforced at bundle configuration time
+- `EncryptorFactory` — `encryptorsByTypeName` lookup cache for O(1) encryptor resolution by type name
+- PHPStan level 8 with baseline
+- Test classes: `ConfigurationTest`, `PrecisionSoftDoctrineEncryptExtensionTest`, `EntityMetadataDtoTest`, `AbstractEncryptorCryptoTest`, `AbstractDatabaseCommandTest`, `Aes256EncryptorTest`, `AbstractTypeTest`, `ExceptionTest`, `EncryptorFactoryExtendedTest`, `EntityServiceExtendedTest`, `PrecisionSoftDoctrineEncryptBundleTest`
+
+## [v2.2.4] - 2026-03-21 - README clone URL correction
 
 ### Fixed
 
 - README — correct repository clone URL
 
-## [v2.2.3] - 2026-03-19
+## [v2.2.3] - 2026-03-19 - Shared encryptor base-class logic
 
 ### Changed
 
@@ -221,7 +243,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `AbstractEncryptor::generateNonce()` declared `abstract`
 - `AES256Encryptor` / `AES256FixedEncryptor` — removed duplicated encrypt/decrypt/constructor logic; now only implement `getTypeClass()` and `generateNonce()`
 
-## [v2.2.2] - 2026-03-19
+## [v2.2.2] - 2026-03-19 - Fixed-encryptor nonce generation off-by-one
 
 ### Fixed
 
@@ -231,24 +253,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `AbstractEncryptor::getTypeClass()` declared `abstract`
 
-## [v2.2.1] - 2026-03-19
+## [v2.2.1] - 2026-03-19 - Test expansion and hidden .dev directory
+
+### Changed
+
+- Renamed `dev/` to `.dev/` for hidden directory convention
 
 ### Added
 
 - Test classes: `DatabaseDecryptCommandTest`, `DatabaseEncryptCommandTest`, `EncryptorFactoryTest`, `AES256FixedTypeTest`
 - Expanded `EntityServiceTest` coverage
 
-### Changed
-
-- Renamed `dev/` to `.dev/` for hidden directory convention
-
-## [v2.2.0] - 2026-03-13
-
-### Added
-
-- `Configuration` — `enabled_types` and `encryptors` nodes: allow restricting active encryptors per bundle configuration
-- `FakeEncryptor` — no-op encryptor for use in test environments
-- Test classes: `AES256EncryptorTest`, `AES256FixedEncryptorTest`, `FakeEncryptorTest`, `AES256TypeTest`
+## [v2.2.0] - 2026-03-13 - Configurable encryptors, FakeEncryptor, and test coverage
 
 ### Fixed
 
@@ -260,24 +276,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `AbstractDatabaseCommand` — Yoda conditions, descriptive variable names, inline `getManager()` call
 - Code style alignment across all source files (Yoda comparisons, `[] === $x` over `empty($x)`, catch variable naming)
 
-## [v2.1.0] - 2025-01-06
+### Added
+
+- `Configuration` — `enabled_types` and `encryptors` nodes: allow restricting active encryptors per bundle configuration
+- `FakeEncryptor` — no-op encryptor for use in test environments
+- Test classes: `AES256EncryptorTest`, `AES256FixedEncryptorTest`, `FakeEncryptorTest`, `AES256TypeTest`
+
+## [v2.1.0] - 2025-01-06 - Symfony console version flexibility
 
 ### Changed
 
 - Allow `precision-soft/symfony-console 2.*`
 
-## [v2.0.0] - 2024-11-24
-
-### Added
-
-- Doctrine DBAL 4 support (`doctrine/dbal: ^4.0`)
+## [v2.0.0] - 2024-11-24 - Doctrine DBAL 4 compatibility and constructor promotion
 
 ### Changed
 
 - Constructor property promotion across `AbstractEncryptor`, `AbstractDatabaseCommand`, `EntityService`, `EntityMetadataDto`
 - `AbstractType` — remove space before cast: `(string) $value` → `(string)$value`
 
-## [v1.0.0] - 2024-09-17
+### Added
+
+- Doctrine DBAL 4 support (`doctrine/dbal: ^4.0`)
+
+## [v1.0.0] - 2024-09-17 - Initial release: AES-256 encryption with Doctrine integration
 
 ### Added
 
@@ -292,11 +314,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PrecisionSoftDoctrineEncryptBundle` + `PrecisionSoftDoctrineEncryptExtension` + `Configuration` — Symfony DI integration and config tree
 - `EncryptorInterface` contract for custom encryptor implementations
 
-### Notes
+[Unreleased]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v4.2.0...HEAD
 
-- Initial public release of `precision-soft/symfony-doctrine-encrypt`
-
-[Unreleased]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v4.1.0...HEAD
+[v4.2.0]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v4.1.0...v4.2.0
 
 [v4.1.0]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v4.0.0...v4.1.0
 

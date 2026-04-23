@@ -59,7 +59,7 @@ return static function (PrecisionSoftDoctrineEncryptConfig $precisionSoftDoctrin
 
 The PHP variant is preferred over YAML because the `Symfony\Config\PrecisionSoftDoctrineEncryptConfig` class gives you IDE autocomplete and catches typos at parse time.
 
-`encryptors` is optional — when omitted, every encryptor registered with the `precision_soft.doctrine.encrypt.encryptor` service tag is active. List entries to restrict the built-in set or to swap a built-in encryptor for your own (see [Custom encryptors](#custom-encryptors)).
+`encryptors` is optional — when omitted, every encryptor registered with the `precision-soft.doctrine.encryptor` service tag is active. List entries to restrict the built-in set or to swap a built-in encryptor for your own (see [Custom encryptors](#custom-encryptors)).
 
 `enabledTypes` is optional — when omitted, every type corresponding to an active encryptor is registered. Use this when you want a subset of columns encrypted (for example, only deterministic columns) without removing the encryptor class from the service container.
 
@@ -180,7 +180,7 @@ class CustomerRepository extends ServiceEntityRepository
 | `decrypt(data, class, field)`                           | Decrypts a value using the field's encryptor                                            |
 | `setEncryptedParameter(qb, param, class, field, value)` | Encrypts a value and sets it as a query parameter                                       |
 | `hasEncryptedValue(entity, field)`                      | Reads the raw DB column and checks if it is currently encrypted (additional DBAL query) |
-| `getEntitiesWithEncryption(manager?)`                   | Returns all entity classes that have at least one encrypted field                       |
+| `getEntitiesWithEncryption(managerName?)`               | Returns all entity classes that have at least one encrypted field                       |
 
 ## Commands
 

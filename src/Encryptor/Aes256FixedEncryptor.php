@@ -33,7 +33,7 @@ class Aes256FixedEncryptor extends AbstractEncryptor implements DeterministicEnc
             throw new Exception(\sprintf('unknown salt version `%s`', $saltVersion));
         }
 
-        $hash = \hash_hmac('sha256', $data, $nonceKeys[$saltVersion], true);
+        $hash = \hash_hmac(static::HASH_ALGORITHM, $data, $nonceKeys[$saltVersion], true);
 
         return \substr($hash, 0, $this->getInitialVectorLength());
     }

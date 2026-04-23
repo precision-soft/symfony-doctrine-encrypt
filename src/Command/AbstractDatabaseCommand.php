@@ -29,7 +29,7 @@ use Throwable;
 abstract class AbstractDatabaseCommand extends AbstractCommand
 {
     protected const OPTION_MANAGER = 'manager';
-    private const BATCH_SIZE = 50;
+    protected const BATCH_SIZE = 50;
 
     public function __construct(
         protected readonly ManagerRegistry $managerRegistry,
@@ -43,12 +43,12 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
     {
         parent::configure();
 
-        $this->addOption(self::OPTION_MANAGER, null, InputOption::VALUE_OPTIONAL, 'the entity manager for which to run the command');
+        $this->addOption(static::OPTION_MANAGER, null, InputOption::VALUE_OPTIONAL, 'the entity manager for which to run the command');
     }
 
     protected function getManagerName(): ?string
     {
-        $managerName = $this->input->getOption(self::OPTION_MANAGER);
+        $managerName = $this->input->getOption(static::OPTION_MANAGER);
 
         return true === \is_string($managerName) ? $managerName : null;
     }
@@ -137,7 +137,7 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
                 $queryBuilder->addOrderBy('e.' . $identifierFieldName, 'ASC');
             }
 
-            $queryBuilder->setMaxResults(self::BATCH_SIZE);
+            $queryBuilder->setMaxResults(static::BATCH_SIZE);
 
             if (null !== $lastIdentifierValues) {
                 $this->applyKeysetPagination($queryBuilder, $identifierFieldNames, $lastIdentifierValues);

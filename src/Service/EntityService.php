@@ -152,7 +152,7 @@ class EntityService
         return $candidates;
     }
 
-    private function getDeterministicEncryptor(
+    protected function getDeterministicEncryptor(
         string $class,
         string $field,
         ?string $managerName = null,
@@ -220,20 +220,20 @@ class EntityService
     /**
      * @return EntityMetadataDto[]
      */
-    public function getEntitiesWithEncryption(?string $manager = null): array
+    public function getEntitiesWithEncryption(?string $managerName = null): array
     {
-        $entities = [];
-        $objectManager = $this->managerRegistry->getManager($manager);
+        $entitiesWithEncryption = [];
+        $objectManager = $this->managerRegistry->getManager($managerName);
 
         foreach ($objectManager->getMetadataFactory()->getAllMetadata() as $classMetadata) {
             $encryptionFields = $this->getFieldsForClassMetadata($classMetadata);
 
             if ([] !== $encryptionFields) {
-                $entities[$classMetadata->getName()] = new EntityMetadataDto($classMetadata, $encryptionFields);
+                $entitiesWithEncryption[$classMetadata->getName()] = new EntityMetadataDto($classMetadata, $encryptionFields);
             }
         }
 
-        return $entities;
+        return $entitiesWithEncryption;
     }
 
     /**
