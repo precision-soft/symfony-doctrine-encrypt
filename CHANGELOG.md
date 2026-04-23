@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.3.0] - 2026-04-23 - Visibility widening for library extensibility
+
+### Changed
+
+- `AbstractType::$encryptor` — widened from `private` to `protected` so subclasses can access or replace the encryptor instance without going through the public getter/setter
+- `EntityMetadataDto::$classMetadata` / `$encryptionFields` — widened from `private` to `protected`; the DTO can be subclassed with direct property reads instead of going through the public getters
+- `EncryptorFactory::$encryptors`, `$encryptorsByTypeName`, `$typeNames` — widened from `private` to `protected`; matches the progressive visibility-widening pattern established in v3.1.0 and v4.2.0
+
 ## [v4.2.0] - 2026-04-23 - Late-static-binding and library-extensibility fixes
 
 ### Changed
@@ -314,7 +322,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PrecisionSoftDoctrineEncryptBundle` + `PrecisionSoftDoctrineEncryptExtension` + `Configuration` — Symfony DI integration and config tree
 - `EncryptorInterface` contract for custom encryptor implementations
 
-[Unreleased]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v4.2.0...HEAD
+[Unreleased]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v4.3.0...HEAD
+
+[v4.3.0]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v4.2.0...v4.3.0
 
 [v4.2.0]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v4.1.0...v4.2.0
 

@@ -17,7 +17,7 @@ abstract class AbstractType extends StringType
 {
     protected const DEFAULT_LENGTH = 1000;
 
-    private ?EncryptorInterface $encryptor = null;
+    protected ?EncryptorInterface $encryptor = null;
 
     abstract protected static function getShortName(): string;
 

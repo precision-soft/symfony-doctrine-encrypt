@@ -20,13 +20,13 @@ use PrecisionSoft\Doctrine\Encrypt\Type\AbstractType;
 class EncryptorFactory
 {
     /** @var array<class-string, EncryptorInterface> */
-    private array $encryptors;
+    protected array $encryptors;
 
     /** @var array<string, EncryptorInterface> */
-    private array $encryptorsByTypeName;
+    protected array $encryptorsByTypeName;
 
     /** @var string[] */
-    private array $typeNames;
+    protected array $typeNames;
 
     /**
      * @param iterable<EncryptorInterface> $encryptors

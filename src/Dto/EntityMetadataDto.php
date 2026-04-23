@@ -17,8 +17,8 @@ readonly class EntityMetadataDto
      * @param array<string, string> $encryptionFields
      */
     public function __construct(
-        private ClassMetadata $classMetadata,
-        private array $encryptionFields,
+        protected ClassMetadata $classMetadata,
+        protected array $encryptionFields,
     ) {}
 
     /** @phpstan-return ClassMetadata<object> */
