@@ -44,7 +44,7 @@ abstract class AbstractType extends StringType
         return $this->encryptor;
     }
 
-    public function setEncryptor(EncryptorInterface $encryptor): self
+    public function setEncryptor(EncryptorInterface $encryptor): static
     {
         $this->encryptor = $encryptor;
 

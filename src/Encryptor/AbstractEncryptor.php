@@ -29,13 +29,13 @@ abstract class AbstractEncryptor implements EncryptorInterface
     protected readonly string $legacySaltVersion;
     protected readonly string $nonceKey;
     /** @var array<string, string> */
-    private readonly array $encryptionKeysBySaltVersion;
+    protected readonly array $encryptionKeysBySaltVersion;
     /** @var array<string, string> */
-    private readonly array $macKeysBySaltVersion;
+    protected readonly array $macKeysBySaltVersion;
     /** @var array<string, string> */
-    private readonly array $nonceKeysBySaltVersion;
+    protected readonly array $nonceKeysBySaltVersion;
     /** @var int<1, max>|null */
-    private ?int $initialVectorLengthCache = null;
+    protected ?int $initialVectorLengthCache = null;
 
     abstract public function getTypeClass(): string;
 

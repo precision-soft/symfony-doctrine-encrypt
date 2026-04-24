@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.3.1] - 2026-04-23 - Widen AbstractType and AbstractEncryptor visibility for extensibility
+
+### Changed
+
+- `AbstractType::setEncryptor()` — return type widened from `self` to `static`; `AbstractType` is abstract and both `Aes256Type` and `Aes256FixedType` extend it, so fluent chains that call `setEncryptor()` on a concrete subclass now correctly return the subclass type instead of `AbstractType`
+- `AbstractEncryptor::$encryptionKeysBySaltVersion`, `$macKeysBySaltVersion`, `$nonceKeysBySaltVersion` — visibility widened from `private readonly` to `protected readonly`; these derived-key caches are in an abstract class that must be subclassed to use, so concrete extensions that override `encrypt()` or `decrypt()` can now access the key material directly
+- `AbstractEncryptor::$initialVectorLengthCache` — visibility widened from `private` to `protected` for the same reason
+
 ## [v4.3.0] - 2026-04-23 - Visibility widening for library extensibility
 
 ### Changed
@@ -322,7 +330,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PrecisionSoftDoctrineEncryptBundle` + `PrecisionSoftDoctrineEncryptExtension` + `Configuration` — Symfony DI integration and config tree
 - `EncryptorInterface` contract for custom encryptor implementations
 
-[Unreleased]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v4.3.0...HEAD
+[Unreleased]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v4.3.1...HEAD
+
+[v4.3.1]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v4.3.0...v4.3.1
 
 [v4.3.0]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v4.2.0...v4.3.0
 
