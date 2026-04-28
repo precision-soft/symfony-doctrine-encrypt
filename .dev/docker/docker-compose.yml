@@ -9,6 +9,6 @@ services:
                 GROUP_ID: ${GROUP_ID}
                 WORKDIR: ${CONTAINER_APP_PATH}
                 ENTRYPOINT_SH_SOURCE: ${CONFIG_PATH}/entrypoint.sh
-        restart: on-failure
+        restart: 'no'
         volumes:
             - ${RELATIVE_PATH_TO_ROOT}:${CONTAINER_APP_PATH}
