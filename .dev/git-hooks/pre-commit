@@ -13,14 +13,6 @@ stop() {
     exit $1
 }
 
-check_container_dev() {
-    if [[ $(check_container "${CONTAINER_DEV}") != 0 ]]; then
-        println ""
-
-        stop 1 "$(error_container ${CONTAINER_DEV})"
-    fi
-}
-
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 lint() {
@@ -114,7 +106,7 @@ print_command "staged files start"
 println "${STAGED_FILES}"
 print_command "staged files end"
 
-check_container_dev
+ensure_container_dev
 
 STAGED_FILES_PHP=$(git diff --cached --name-only --diff-filter=ACMR HEAD | grep \\.php)
 if [[ "${STAGED_FILES_PHP}" != "" ]]; then

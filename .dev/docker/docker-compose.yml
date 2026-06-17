@@ -1,14 +1,14 @@
 services:
-    dev:
-        build:
-            context: ${RELATIVE_PATH_TO_ROOT}
-            dockerfile: ${CONFIG_PATH}/Dockerfile
-            args:
-                CONFIG_PATH: ${CONFIG_PATH}
-                USER_ID: ${USER_ID}
-                GROUP_ID: ${GROUP_ID}
-                WORKDIR: ${CONTAINER_APP_PATH}
-                ENTRYPOINT_SH_SOURCE: ${CONFIG_PATH}/entrypoint.sh
-        restart: 'no'
-        volumes:
-            - ${RELATIVE_PATH_TO_ROOT}:${CONTAINER_APP_PATH}
+  dev:
+    build:
+      context: ${RELATIVE_PATH_TO_ROOT}
+      dockerfile: ${CONFIG_PATH}/Dockerfile
+      args:
+        CONFIG_PATH: ${CONFIG_PATH}
+        USER_ID: ${USER_ID}
+        GROUP_ID: ${GROUP_ID}
+        WORKDIR: ${CONTAINER_APP_PATH}
+        ENTRYPOINT_SH_SOURCE: ${CONFIG_PATH}/entrypoint.sh
+    restart: 'no'
+    volumes:
+      - ${RELATIVE_PATH_TO_ROOT}:${CONTAINER_APP_PATH}

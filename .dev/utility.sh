@@ -62,6 +62,14 @@ check_container() {
     echo 0
 }
 
+ensure_container_dev() {
+    if [[ $(check_container "${CONTAINER_DEV}") != 0 ]]; then
+        warning "the '${CONTAINER_DEV}' container is not running ( starting )"
+
+        docker_compose up -d "${CONTAINER_DEV}"
+    fi
+}
+
 docker_compose_no_log() {
     (
         cd "${DOCKER_PATH}" &&
