@@ -301,6 +301,12 @@ abstract class AbstractEncryptor implements EncryptorInterface
         return \hash_hmac(static::HASH_ALGORITHM, $algorithm . $ciphertext . $nonce, $macKey, true);
     }
 
+    /**
+     * @info treats a value as already-encrypted when its first `GLUE`-delimited segment is the literal
+     *   `ENCRYPTION_MARKER` and the payload segments are valid base64, so `encrypt()` leaves it untouched.
+     *   The `<ENC>\0` prefix is therefore reserved: a plaintext that starts with it and mimics the
+     *   ciphertext shape is passed through as-is. This checks shape only, not the MAC.
+     */
     protected function looksEncrypted(string $data): bool
     {
         if (false === \str_starts_with($data, static::ENCRYPTION_MARKER . static::GLUE)) {

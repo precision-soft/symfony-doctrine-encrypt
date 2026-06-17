@@ -44,6 +44,15 @@
     "install-hooks": [
       "[ \"$COMPOSER_DEV_MODE\" -eq 1 ] && rm -rf .git/hooks && ln -s ../.dev/git-hooks .git/hooks || exit 0"
     ],
+    "test": "simple-phpunit",
+    "phpstan": "phpstan analyse --memory-limit=512M",
+    "cs-check": "php-cs-fixer fix --dry-run --diff",
+    "cs-fix": "php-cs-fixer fix",
+    "check": [
+      "@cs-check",
+      "@phpstan",
+      "@test"
+    ],
     "post-install-cmd": [
       "@install-hooks"
     ],

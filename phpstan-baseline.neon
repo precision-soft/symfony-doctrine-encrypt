@@ -3,25 +3,25 @@ parameters:
 		-
 			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:andReturn\(\)\.$#'
 			identifier: method.notFound
-			count: 11
+			count: 16
 			path: tests/Command/AbstractDatabaseCommandTest.php
 
 		-
 			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:once\(\)\.$#'
 			identifier: method.notFound
-			count: 37
+			count: 51
 			path: tests/Command/AbstractDatabaseCommandTest.php
 
 		-
 			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:with\(\)\.$#'
 			identifier: method.notFound
-			count: 39
+			count: 51
 			path: tests/Command/AbstractDatabaseCommandTest.php
 
 		-
 			message: '#^Parameter \#1 \$classMetadata of class PrecisionSoft\\Doctrine\\Encrypt\\Dto\\EntityMetadataDto constructor expects Doctrine\\Persistence\\Mapping\\ClassMetadata\<object\>, Mockery\\MockInterface given\.$#'
 			identifier: argument.type
-			count: 3
+			count: 5
 			path: tests/Command/AbstractDatabaseCommandTest.php
 
 		-
@@ -33,7 +33,7 @@ parameters:
 		-
 			message: '#^Parameter \#1 \$managerRegistry of class PrecisionSoft\\Doctrine\\Encrypt\\Command\\DatabaseEncryptCommand constructor expects Doctrine\\Persistence\\ManagerRegistry, Mockery\\MockInterface given\.$#'
 			identifier: argument.type
-			count: 4
+			count: 6
 			path: tests/Command/AbstractDatabaseCommandTest.php
 
 		-
@@ -45,7 +45,7 @@ parameters:
 		-
 			message: '#^Parameter \#2 \$encryptorFactory of class PrecisionSoft\\Doctrine\\Encrypt\\Command\\DatabaseEncryptCommand constructor expects PrecisionSoft\\Doctrine\\Encrypt\\Service\\EncryptorFactory, Mockery\\MockInterface given\.$#'
 			identifier: argument.type
-			count: 4
+			count: 6
 			path: tests/Command/AbstractDatabaseCommandTest.php
 
 		-
@@ -57,7 +57,7 @@ parameters:
 		-
 			message: '#^Parameter \#3 \$entityService of class PrecisionSoft\\Doctrine\\Encrypt\\Command\\DatabaseEncryptCommand constructor expects PrecisionSoft\\Doctrine\\Encrypt\\Service\\EntityService, Mockery\\MockInterface given\.$#'
 			identifier: argument.type
-			count: 4
+			count: 6
 			path: tests/Command/AbstractDatabaseCommandTest.php
 
 		-

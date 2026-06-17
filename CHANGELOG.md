@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.4.0] - 2026-06-17 - Configurable batch size for encrypt and decrypt commands
+
+### Added
+
+- `AbstractDatabaseCommand` — `--batch-size` option (default `50`) controls how many entities are processed per batch in the encrypt/decrypt commands; the value is validated as a positive integer and rejected otherwise. Lets large or memory-constrained databases tune throughput instead of the hard-coded `50`
+- `composer.json` — added `test`, `phpstan`, `cs-check`, `cs-fix` and an aggregate `check` convenience script wrapping `simple-phpunit`, `phpstan`, and `php-cs-fixer`
+
+### Changed
+
+- `AbstractEncryptor::looksEncrypted()` — documented that the `<ENC>\0` prefix is reserved and that the check validates ciphertext shape only, not the MAC
+
 ## [v4.3.1] - 2026-04-23 - Widen AbstractType and AbstractEncryptor visibility for extensibility
 
 ### Changed
@@ -330,7 +341,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PrecisionSoftDoctrineEncryptBundle` + `PrecisionSoftDoctrineEncryptExtension` + `Configuration` — Symfony DI integration and config tree
 - `EncryptorInterface` contract for custom encryptor implementations
 
-[Unreleased]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v4.3.1...HEAD
+[Unreleased]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v4.4.0...HEAD
+
+[v4.4.0]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v4.3.1...v4.4.0
 
 [v4.3.1]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v4.3.0...v4.3.1
 

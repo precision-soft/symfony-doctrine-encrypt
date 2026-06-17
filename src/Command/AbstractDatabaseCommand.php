@@ -29,6 +29,7 @@ use Throwable;
 abstract class AbstractDatabaseCommand extends AbstractCommand
 {
     protected const OPTION_MANAGER = 'manager';
+    protected const OPTION_BATCH_SIZE = 'batch-size';
     protected const BATCH_SIZE = 50;
 
     public function __construct(
@@ -44,6 +45,7 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
         parent::configure();
 
         $this->addOption(static::OPTION_MANAGER, null, InputOption::VALUE_OPTIONAL, 'the entity manager for which to run the command');
+        $this->addOption(static::OPTION_BATCH_SIZE, null, InputOption::VALUE_REQUIRED, 'number of entities to process per batch', (string)static::BATCH_SIZE);
     }
 
     protected function getManagerName(): ?string
@@ -51,6 +53,22 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
         $managerName = $this->input->getOption(static::OPTION_MANAGER);
 
         return true === \is_string($managerName) ? $managerName : null;
+    }
+
+    /**
+     * @throws Exception if the option is not a positive integer
+     */
+    protected function getBatchSize(): int
+    {
+        $batchSize = $this->input->getOption(static::OPTION_BATCH_SIZE);
+
+        if (false === \is_string($batchSize) || 1 !== \preg_match('/^[1-9]\d*$/', $batchSize)) {
+            throw new Exception(
+                \sprintf('the `--%s` option must be a positive integer', static::OPTION_BATCH_SIZE),
+            );
+        }
+
+        return (int)$batchSize;
     }
 
     protected function getManager(): EntityManagerInterface
@@ -107,6 +125,8 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
 
         $identifierFieldNames = $entityMetadataDto->getClassMetadata()->getIdentifierFieldNames();
 
+        $batchSize = $this->getBatchSize();
+
         $entityManager = $this->getManager();
         /** @var EntityRepository<object> $repository */
         $repository = $entityManager->getRepository($className);
@@ -137,7 +157,7 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
                 $queryBuilder->addOrderBy('e.' . $identifierFieldName, 'ASC');
             }
 
-            $queryBuilder->setMaxResults(static::BATCH_SIZE);
+            $queryBuilder->setMaxResults($batchSize);
 
             if (null !== $lastIdentifierValues) {
                 $this->applyKeysetPagination($queryBuilder, $identifierFieldNames, $lastIdentifierValues);
