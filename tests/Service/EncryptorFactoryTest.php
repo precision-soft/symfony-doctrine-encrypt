@@ -9,7 +9,6 @@ declare(strict_types=1);
 namespace PrecisionSoft\Doctrine\Encrypt\Test\Service;
 
 use Doctrine\DBAL\Types\Type;
-use Mockery\MockInterface;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256Encryptor;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256FixedEncryptor;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\FakeEncryptor;
@@ -17,6 +16,7 @@ use PrecisionSoft\Doctrine\Encrypt\Exception\DuplicateEncryptorException;
 use PrecisionSoft\Doctrine\Encrypt\Exception\EncryptorNotFoundException;
 use PrecisionSoft\Doctrine\Encrypt\Exception\TypeNotFoundException;
 use PrecisionSoft\Doctrine\Encrypt\Service\EncryptorFactory;
+use PrecisionSoft\Doctrine\Encrypt\Type\Aes256FixedType;
 use PrecisionSoft\Doctrine\Encrypt\Type\Aes256Type;
 use PrecisionSoft\Symfony\Phpunit\MockDto;
 use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
@@ -45,7 +45,6 @@ final class EncryptorFactoryTest extends AbstractTestCase
 
     public function testGetEncryptor(): void
     {
-        /** @var EncryptorFactory|MockInterface $encryptorFactory */
         $encryptorFactory = $this->get(EncryptorFactory::class);
 
         $encryptor = $encryptorFactory->getEncryptor(Aes256FixedEncryptor::class);
@@ -55,7 +54,6 @@ final class EncryptorFactoryTest extends AbstractTestCase
 
     public function testGetEncryptorByType(): void
     {
-        /** @var EncryptorFactory|MockInterface $encryptorFactory */
         $encryptorFactory = $this->get(EncryptorFactory::class);
 
         $encryptor = $encryptorFactory->getEncryptorByType(Aes256Type::getFullName());
@@ -65,7 +63,6 @@ final class EncryptorFactoryTest extends AbstractTestCase
 
     public function testGetType(): void
     {
-        /** @var EncryptorFactory|MockInterface $encryptorFactory */
         $encryptorFactory = $this->get(EncryptorFactory::class);
 
         if (false === Type::hasType(Aes256Type::getFullName())) {
@@ -79,25 +76,26 @@ final class EncryptorFactoryTest extends AbstractTestCase
 
     public function testGetEncryptors(): void
     {
-        /** @var EncryptorFactory $encryptorFactory */
         $encryptorFactory = $this->get(EncryptorFactory::class);
 
-        static::assertIsArray($encryptorFactory->getEncryptors());
-        static::assertNotEmpty($encryptorFactory->getEncryptors());
+        static::assertSame(
+            [Aes256Encryptor::class, Aes256FixedEncryptor::class, FakeEncryptor::class],
+            \array_keys($encryptorFactory->getEncryptors()),
+        );
     }
 
     public function testGetTypeNames(): void
     {
-        /** @var EncryptorFactory $encryptorFactory */
         $encryptorFactory = $this->get(EncryptorFactory::class);
 
-        static::assertIsArray($encryptorFactory->getTypeNames());
-        static::assertNotEmpty($encryptorFactory->getTypeNames());
+        static::assertSame(
+            [Aes256Type::getFullName(), Aes256FixedType::getFullName()],
+            $encryptorFactory->getTypeNames(),
+        );
     }
 
     public function testGetEncryptorThrowsNotFoundException(): void
     {
-        /** @var EncryptorFactory $encryptorFactory */
         $encryptorFactory = $this->get(EncryptorFactory::class);
 
         $this->expectException(EncryptorNotFoundException::class);
@@ -107,7 +105,6 @@ final class EncryptorFactoryTest extends AbstractTestCase
 
     public function testGetEncryptorByTypeThrowsNotFoundException(): void
     {
-        /** @var EncryptorFactory $encryptorFactory */
         $encryptorFactory = $this->get(EncryptorFactory::class);
 
         $this->expectException(EncryptorNotFoundException::class);
@@ -117,7 +114,6 @@ final class EncryptorFactoryTest extends AbstractTestCase
 
     public function testGetTypeThrowsTypeNotFoundException(): void
     {
-        /** @var EncryptorFactory $encryptorFactory */
         $encryptorFactory = $this->get(EncryptorFactory::class);
 
         $this->expectException(TypeNotFoundException::class);

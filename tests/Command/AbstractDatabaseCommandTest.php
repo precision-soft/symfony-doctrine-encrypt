@@ -296,7 +296,7 @@ final class AbstractDatabaseCommandTest extends AbstractTestCase
         $countQueryBuilder->shouldReceive('getQuery')->once()->andReturn($countQuery);
 
         $firstEntityQuery = Mockery::mock(Query::class);
-        /** @info expectation ordered("select") ensures the SELECT executes BEFORE the FakeEncryptor swap — if the swap happened first (SDE-119), entity properties would never see plaintext */
+        /* ordered() is the assertion here: the SELECT must run before the FakeEncryptor swap, or plaintext is re-encrypted on write */
         $firstEntityQuery->shouldReceive('getResult')->once()->ordered('select')->andReturn([$entity]);
 
         $firstEntityQueryBuilder = Mockery::mock(QueryBuilder::class);

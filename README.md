@@ -1,5 +1,6 @@
 # Symfony Doctrine Encrypt Bundle
 
+[![ci](https://github.com/precision-soft/symfony-doctrine-encrypt/actions/workflows/ci.yml/badge.svg)](https://github.com/precision-soft/symfony-doctrine-encrypt/actions/workflows/ci.yml)
 [![PHP >= 8.2](https://img.shields.io/badge/php-%3E%3D8.2-8892BF)](https://www.php.net/)
 [![PHPStan Level 8](https://img.shields.io/badge/phpstan-level%208-brightgreen)](https://phpstan.org/)
 [![Code Style PER-CS2.0](https://img.shields.io/badge/code%20style-PER--CS2.0-blue)](https://www.php-fig.org/per/coding-style/)
@@ -213,6 +214,10 @@ php bin/console precision-soft:doctrine:database:encrypt --manager=secondary
 - **Raw string encryption**: Values are encrypted and decrypted as raw strings without any serialisation layer.
 - **Double-encryption protection**: The `encrypt()` method detects the encryption marker and returns already-encrypted data unchanged. This prevents accidental double-encryption when processing raw values that are already encrypted.
 - **Key separation**: Encryption, MAC, and deterministic-nonce subkeys are derived independently via HKDF info strings, so compromising one subkey does not expose the others.
+- **Key material and dump paths**: The likeliest way to leak keys is not a broken cipher but a dumped service. `__debugInfo()` reduces an encryptor to its algorithm and salt-version shape, which covers `var_dump()`, `print_r()` and Symfony's VarDumper (the profiler and `dump()`). `serialize()` and `unserialize()` are refused outright — an encryptor must never be written into a session, a cache entry or a queued message. The salt itself is marked `#[\SensitiveParameter]`, so it is redacted from stack traces. **`var_export()` remains an exposure**: PHP offers no hook for it — there is no counterpart to `__debugInfo()`, and `__set_state()` only governs the reverse direction — so never `var_export()` an encryptor or any object graph containing one.
+- **The `<ENC>\0` prefix is reserved**: `looksEncrypted()` checks the envelope *shape*, never the MAC. A plaintext that both starts with the marker and mimics the six-part shape with valid base64 segments is therefore passed through by `encrypt()` unchanged — and then rejected by `decrypt()`, because no MAC can verify it. Such a value is stored and cannot be read back. Do not place attacker-controlled values that may begin with `<ENC>\0` into an encrypted field; a marker-prefixed value whose segments are *not* valid base64 is ordinary plaintext and round-trips normally.
+- **The envelope is not canonical**: base64 decoding accepts unpadded input, so stripping the trailing `=` padding produces a different string that authenticates and decrypts identically. This is harmless for integrity — the MAC covers the decoded bytes — but it means a ciphertext has more than one valid spelling. The bundle always writes the padded form, and `Aes256FixedType` lookups compare strings, so only values this bundle produced will match.
+- **Column sizing**: ciphertext is roughly 1.34x the plaintext (base64) plus about eighty bytes of envelope. A column that does not declare a length is created at `AbstractType::DEFAULT_LENGTH` (1000), which overflows at roughly 685 plaintext characters — MySQL and MariaDB reject the write with a "data too long" error rather than truncating, so the failure is loud, but size the column for the ciphertext rather than the plaintext.
 
 ## Secret rotation
 
@@ -399,6 +404,27 @@ class MyDeterministicEncryptor implements DeterministicEncryptorInterface
 
 When using the `encryptors` configuration key, list only your custom encryptor class to ensure it takes precedence over the built-in one. The bundle rejects duplicate encryptors for the same Doctrine type, so only one encryptor per type can be active.
 
+## Exception context
+
+Every exception in this package carries a structured `context` array next to its message, so the facts describing a failure do not have to be parsed back out of a string:
+
+```php
+try {
+    // ...
+} catch (Exception $exception) {
+    $logger->error($exception->getMessage(), $exception->getContext());
+}
+```
+
+`getContext()` returns `[]` when nothing was attached. `setContext()` replaces it and returns the exception, and the constructor accepts it as an optional fourth argument. Values are expected to be scalars, so the array stays serialisable by a logger.
+
+The context is purely **additive**: no message, code or previous throwable changed when it was introduced, so code that logs only `getMessage()` behaves exactly as before.
+
+Nothing in this bundle attaches a context of its own yet — the one place it catches a throwable it rethrows it unchanged — so the capability is there for consumers throwing or extending these exceptions in their own encryptors.
+
+Every exception in the package implements `Contract\ExceptionInterface`, so a consumer can read the context off any of them without knowing the concrete class. A subclass of your own that already declares a `$context` property or a
+`getContext()`/`setContext()` method will collide with `Exception\Trait\ExceptionTrait`.
+
 ## Dev
 
 The development environment uses Docker. The `./dc` script is a Docker Compose wrapper located in `.dev/`.
@@ -409,6 +435,48 @@ cd symfony-doctrine-encrypt
 
 ./dc build && ./dc up -d
 ```
+
+Run the full gate the way the pre-commit hook runs it - the CI workflow in
+`.github/workflows/ci.yml` calls the same composer scripts, so the two cannot drift:
+
+```shell
+.dev/validate/all.sh
+.dev/validate/all.sh --audit    # also audits the locked dependencies ( needs the network )
+.dev/validate/all.sh --staged   # what the pre-commit hook runs: nothing unless the index carries php
+```
+
+Mutation testing is opt-in for the same reason, plus cost - it runs the suite once per mutant:
+
+```shell
+.dev/validate/all.sh --mutation
+```
+
+Infection is a pinned phar in the image, not a composer dependency, and `infection.json5` carries a
+`minMsi` floor equal to the last measured score, so the section fails when a change makes the suite weaker rather than only reporting a number. Raise the floor when the score improves.
+
+The integration suite needs real databases, which are behind a Compose profile so the default `up`
+stays fast and offline:
+
+```shell
+./dc --profile db up -d
+.dev/validate/all.sh --integration
+```
+
+Tests connect through `DATABASE_URL_MYSQL` and `DATABASE_URL_MARIADB` and skip themselves when those services are not running, so `composer check` never depends on them.
+
+Build against another PHP version with the `PHP_VERSION` build argument - each version is tagged as its own image, so switching back and forth costs nothing:
+
+```shell
+PHP_VERSION=8.4 ./dc build && PHP_VERSION=8.4 ./dc up -d
+```
+
+Coverage is available through pcov, which is installed but disabled by default:
+
+```shell
+./dc exec dev php -d pcov.enabled=1 vendor/bin/simple-phpunit --coverage-text
+```
+
+After editing a file, `./dc restart dev` (a few seconds) is enough to be sure the container is not serving a stale copy - the bind mount can keep the old inode after an atomic rewrite.
 
 ## Todo
 

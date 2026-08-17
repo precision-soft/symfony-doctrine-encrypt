@@ -1,31 +1,67 @@
-FROM php:8.2-cli-alpine
+ARG PHP_VERSION=8.2
+
+FROM php:${PHP_VERSION}-cli-alpine
 
 ARG CONFIG_PATH
 ARG USER_ID
 ARG GROUP_ID
 ARG WORKDIR
-ARG ENTRYPOINT_SH_SOURCE
 
 ENV USER=www-data
 ENV HOME=/home/${USER}
 ENV WORKDIR=${WORKDIR}
 
-COPY ${CONFIG_PATH}/.profile* ${HOME}/
-ENV ENV="${HOME}/.profile"
-
 RUN apk add --no-cache shadow bash git && rm -rf /tmp/*
 
 RUN cp ${PHP_INI_DIR}/php.ini-production ${PHP_INI_DIR}/php.ini
+
+RUN docker-php-ext-install pdo_mysql
+
+ARG PCOV_VERSION=1.0.12
+RUN apk add --no-cache --virtual .build-deps ${PHPIZE_DEPS} \
+    && curl -fsSL "https://github.com/krakjoe/pcov/archive/refs/tags/v${PCOV_VERSION}.tar.gz" -o /tmp/pcov.tar.gz \
+    && mkdir -p /tmp/pcov \
+    && tar -xzf /tmp/pcov.tar.gz -C /tmp/pcov --strip-components=1 \
+    && cd /tmp/pcov \
+    && phpize \
+    && ./configure \
+    && make -j"$(nproc)" \
+    && make install \
+    && docker-php-ext-enable pcov \
+    && php -m | grep -qx pcov \
+    && apk del .build-deps \
+    && rm -rf /tmp/*
+
+ARG INFECTION_VERSION=0.31.9
+RUN curl -fsSL -o /usr/local/bin/infection \
+        "https://github.com/infection/infection/releases/download/${INFECTION_VERSION}/infection.phar" \
+    && chmod +x /usr/local/bin/infection \
+    && infection --version \
+    && rm -rf /tmp/*
+
+COPY ${CONFIG_PATH}/php.dev.ini ${PHP_INI_DIR}/conf.d/zz-dev.ini
 
 COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 
 RUN groupmod -g ${GROUP_ID} ${USER} \
     && usermod -u ${USER_ID} ${USER}
 
+COPY ${CONFIG_PATH}/.profile* ${HOME}/
+ENV ENV="${HOME}/.profile"
+RUN printf '%s\n' \
+        'if [ -f "$HOME/.profile" ]; then' \
+        '    . "$HOME/.profile"' \
+        'fi' \
+        > "${HOME}/.bashrc" \
+    && printf '%s\n' \
+        'if [ -f "$HOME/.bashrc" ]; then' \
+        '    . "$HOME/.bashrc"' \
+        'fi' \
+        > "${HOME}/.bash_profile"
+
 WORKDIR ${WORKDIR}
 
-ENV ENTRYPOINT_SH=/entrypoint.sh
-COPY ${ENTRYPOINT_SH_SOURCE} ${ENTRYPOINT_SH}
-RUN chmod +x ${ENTRYPOINT_SH}
+COPY ${CONFIG_PATH}/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-ENTRYPOINT exec ${ENTRYPOINT_SH}
+ENTRYPOINT ["/entrypoint.sh"]

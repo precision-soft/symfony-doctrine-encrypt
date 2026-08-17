@@ -8,5 +8,5 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Encrypt\Contract;
 
-/** @info marker: implementers must produce identical ciphertext for identical plaintext so the value is usable in WHERE comparisons */
+/** Marker with no members: an implementer must produce identical ciphertext for identical plaintext, or a WHERE comparison against it can never match. */
 interface DeterministicEncryptorInterface extends EncryptorInterface {}

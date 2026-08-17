@@ -155,7 +155,7 @@ final class PrecisionSoftDoctrineEncryptBundleTest extends AbstractTestCase
 
     private function removeTypeIfExists(string $typeName): void
     {
-        /** @info Doctrine Type registry does not natively support removal, use override mechanism instead */
+        /* the Doctrine type registry has no removal API, so overriding is the only way to unset a type */
         if (Type::hasType($typeName)) {
             Type::overrideType($typeName, Type::getType($typeName)::class);
         }

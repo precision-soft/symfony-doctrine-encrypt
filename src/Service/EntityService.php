@@ -23,7 +23,7 @@ use PrecisionSoft\Doctrine\Encrypt\Exception\NonDeterministicEncryptorException;
 
 class EntityService
 {
-    /** @var array<string, array<string, string>> keyed by "managerName|class" */
+    /** @var array<string, array<string, string>> */
     protected array $encryptedFieldsCache = [];
 
     public function __construct(
@@ -89,7 +89,6 @@ class EntityService
         return $encryptor->decrypt($encryptedData);
     }
 
-    /** @info the field must use a deterministic encryptor; otherwise the ciphertext varies per call and the generated WHERE clause can never match */
     public function setEncryptedParameter(
         QueryBuilder $queryBuilder,
         string $parameterName,
@@ -104,8 +103,6 @@ class EntityService
     }
 
     /**
-     * @info rotation-safe variant of setEncryptedParameter: materialises one ciphertext per active salt version so `WHERE field IN (:param)` matches rows encrypted under previous salts as well as rows encrypted under the current one — see SDE-153
-     *
      * @return list<string> the ciphertext candidates, in configured salt-version order
      */
     public function setEncryptedParameterInList(
@@ -124,8 +121,6 @@ class EntityService
     }
 
     /**
-     * @info emits one deterministic ciphertext per active salt version so callers can build rotation-safe `IN (...)` lookups without leaking bundle internals; caller is responsible for placing these into their query
-     *
      * @return list<string>
      */
     public function getDeterministicCiphertextCandidates(
@@ -173,7 +168,6 @@ class EntityService
         return $encryptor;
     }
 
-    /** @info issues a dedicated dbal query to inspect the raw column — callers must weigh the extra round-trip */
     public function hasEncryptedValue(
         object $entity,
         string $field,
@@ -187,7 +181,8 @@ class EntityService
 
         $identifiers = $classMetadata->getIdentifierValues($entity);
 
-        if (true === \in_array(null, $identifiers, true)) {
+        /* getIdentifierValues() omits nulls, so an incompletely identified entity arrives as a short array and never as a null entry */
+        if (\count($identifiers) !== \count($classMetadata->getIdentifierFieldNames())) {
             return false;
         }
 
@@ -249,7 +244,10 @@ class EntityService
             return $this->encryptedFieldsCache[$cacheKey];
         }
 
-        \assert(\class_exists($class));
+        if (false === \class_exists($class)) {
+            throw new Exception(\sprintf('cannot resolve encrypted fields for unknown class `%s`', $class));
+        }
+
         $objectManager = $this->managerRegistry->getManager($managerName);
         $classMetadata = $objectManager->getMetadataFactory()->getMetadataFor($class);
 

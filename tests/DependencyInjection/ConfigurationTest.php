@@ -200,7 +200,6 @@ final class ConfigurationTest extends TestCase
         );
     }
 
-    /** @info SDE-154 — salt-version keys with null bytes would break the wire-format framing; configuration must reject them */
     public function testSaltVersionKeyWithNullByteRejected(): void
     {
         $this->expectException(InvalidConfigurationException::class);
@@ -217,7 +216,6 @@ final class ConfigurationTest extends TestCase
         );
     }
 
-    /** @info SDE-154 — salt-version keys with whitespace must be rejected */
     public function testSaltVersionKeyWithSpaceRejected(): void
     {
         $this->expectException(InvalidConfigurationException::class);
@@ -234,7 +232,6 @@ final class ConfigurationTest extends TestCase
         );
     }
 
-    /** @info SDE-154 — salt-version keys with non-ASCII runes must be rejected */
     public function testSaltVersionKeyWithNonAsciiRejected(): void
     {
         $this->expectException(InvalidConfigurationException::class);
@@ -251,7 +248,6 @@ final class ConfigurationTest extends TestCase
         );
     }
 
-    /** @info SDE-152 — `legacy_salt_version` parses cleanly and must reference a key in the salts map */
     public function testLegacySaltVersionMustReferenceKeyInSalts(): void
     {
         $this->expectException(InvalidConfigurationException::class);
@@ -269,7 +265,6 @@ final class ConfigurationTest extends TestCase
         );
     }
 
-    /** @info SDE-152 — the happy path where `legacy_salt_version` is accepted and stored */
     public function testLegacySaltVersionParsedFromConfiguration(): void
     {
         $processedConfiguration = $this->processor->processConfiguration(
@@ -286,7 +281,6 @@ final class ConfigurationTest extends TestCase
         static::assertSame('v1', $processedConfiguration['legacy_salt_version']);
     }
 
-    /** @info SDE-152 — `legacy_salt_version` has no meaning under the single-salt `salt` shorthand and must be rejected there */
     public function testLegacySaltVersionRejectedWithSingleSaltShorthand(): void
     {
         $this->expectException(InvalidConfigurationException::class);
@@ -303,7 +297,21 @@ final class ConfigurationTest extends TestCase
         );
     }
 
-    /** @info SDE-154 — salt-version identifiers containing a dot (e.g. `v1.0`, `2026.04`) are accepted */
+    public function testEnabledTypesAndEncryptorsDefaultToEmptyArrays(): void
+    {
+        $processedConfiguration = $this->processor->processConfiguration(
+            $this->configuration,
+            [
+                [
+                    'salt' => \str_repeat('a', 32),
+                ],
+            ],
+        );
+
+        static::assertSame([], $processedConfiguration['enabled_types']);
+        static::assertSame([], $processedConfiguration['encryptors']);
+    }
+
     public function testSaltVersionKeyWithDotAccepted(): void
     {
         $processedConfiguration = $this->processor->processConfiguration(

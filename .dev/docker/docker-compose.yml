@@ -1,14 +1,59 @@
 services:
-  dev:
-    build:
-      context: ${RELATIVE_PATH_TO_ROOT}
-      dockerfile: ${CONFIG_PATH}/Dockerfile
-      args:
-        CONFIG_PATH: ${CONFIG_PATH}
-        USER_ID: ${USER_ID}
-        GROUP_ID: ${GROUP_ID}
-        WORKDIR: ${CONTAINER_APP_PATH}
-        ENTRYPOINT_SH_SOURCE: ${CONFIG_PATH}/entrypoint.sh
-    restart: 'no'
-    volumes:
-      - ${RELATIVE_PATH_TO_ROOT}:${CONTAINER_APP_PATH}
+    dev:
+        image: ${COMPOSE_PROJECT_NAME}-dev:php${PHP_VERSION}
+        build:
+            context: ${RELATIVE_PATH_TO_ROOT}
+            dockerfile: ${CONFIG_PATH}/Dockerfile
+            args:
+                PHP_VERSION: ${PHP_VERSION}
+                CONFIG_PATH: ${CONFIG_PATH}
+                USER_ID: ${USER_ID}
+                GROUP_ID: ${GROUP_ID}
+                WORKDIR: ${CONTAINER_APP_PATH}
+        restart: 'no'
+        # tini as PID 1, so SIGTERM reaches the sleep the entrypoint execs into
+        init: true
+        environment:
+            DATABASE_URL_MYSQL: ${DATABASE_URL_MYSQL}
+            DATABASE_URL_MARIADB: ${DATABASE_URL_MARIADB}
+        healthcheck:
+            test: [ 'CMD-SHELL', 'test -f ${CONTAINER_APP_PATH}vendor/autoload.php' ]
+            interval: 30s
+            timeout: 5s
+            retries: 3
+            start_period: 120s
+        volumes:
+            - ${RELATIVE_PATH_TO_ROOT}:${CONTAINER_APP_PATH}
+            - ${RELATIVE_PATH_TO_ROOT}.dev-data/composer:/home/www-data/.composer
+
+    mysql:
+        profiles: [ 'db' ]
+        image: mysql:8.4
+        restart: 'no'
+        environment:
+            MYSQL_ROOT_PASSWORD: root
+            MYSQL_DATABASE: test
+        tmpfs:
+            - /var/lib/mysql
+        healthcheck:
+            test: [ 'CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '-uroot', '-proot' ]
+            interval: 5s
+            timeout: 5s
+            retries: 20
+            start_period: 30s
+
+    mariadb:
+        profiles: [ 'db' ]
+        image: mariadb:11.4
+        restart: 'no'
+        environment:
+            MARIADB_ROOT_PASSWORD: root
+            MARIADB_DATABASE: test
+        tmpfs:
+            - /var/lib/mysql
+        healthcheck:
+            test: [ 'CMD', 'healthcheck.sh', '--connect', '--innodb_initialized' ]
+            interval: 5s
+            timeout: 5s
+            retries: 20
+            start_period: 30s

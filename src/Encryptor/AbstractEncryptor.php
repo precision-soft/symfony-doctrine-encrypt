@@ -42,8 +42,8 @@ abstract class AbstractEncryptor implements EncryptorInterface
     abstract protected function generateNonce(string $data): string;
 
     /**
-     * @param array<string, string>|string $saltsByVersion a bare string is treated as a one-entry map keyed by `DEFAULT_SALT_VERSION` for BC with the single-salt setup
-     * @param string|null $legacySaltVersion explicit salt version used when decrypting pre-v4 four-part payloads; defaults to the first key of `$saltsByVersion` so rotation never silently retargets legacy rows to the new current key
+     * @param array<string, string>|string $saltsByVersion
+     * @param string|null $legacySaltVersion defaults to the first key of `$saltsByVersion` so rotation never silently retargets legacy rows to the new current key
      */
     public function __construct(
         #[\SensitiveParameter]
@@ -105,6 +105,22 @@ abstract class AbstractEncryptor implements EncryptorInterface
         ];
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    public function __serialize(): array
+    {
+        throw new Exception(\sprintf('`%s` holds key material and must not be serialized', static::class));
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    public function __unserialize(array $data): void
+    {
+        throw new Exception(\sprintf('`%s` holds key material and must not be serialized', static::class));
+    }
+
     public function getTypeName(): string
     {
         $typeClass = $this->getTypeClass();
@@ -117,7 +133,7 @@ abstract class AbstractEncryptor implements EncryptorInterface
         return $typeClass::getFullName();
     }
 
-    /** @return list<string> active salt versions in configured order — used by callers that must materialise one ciphertext per rotation epoch (deterministic WHERE lookups) */
+    /** @return list<string> active salt versions in configured order */
     public function getActiveSaltVersions(): array
     {
         return \array_keys($this->encryptionKeysBySaltVersion);
@@ -132,11 +148,15 @@ abstract class AbstractEncryptor implements EncryptorInterface
         return $this->encryptWithSaltVersion($data, $this->currentSaltVersion);
     }
 
-    /** @info additive helper: emits a ciphertext bound to an explicit salt version so deterministic encryptors can generate one candidate per active rotation epoch for `WHERE IN (...)` lookups */
     public function encryptWithSaltVersion(string $data, string $saltVersion): string
     {
         if (false === \array_key_exists($saltVersion, $this->encryptionKeysBySaltVersion)) {
             throw new Exception(\sprintf('unknown salt version `%s`', $saltVersion));
+        }
+
+        /* must stay below the salt-version check, so an unknown version is a loud error and not a pass-through */
+        if (true === $this->looksEncrypted($data)) {
+            return $data;
         }
 
         $nonce = $this->generateNonceForSaltVersion($data, $saltVersion);
@@ -235,9 +255,7 @@ abstract class AbstractEncryptor implements EncryptorInterface
         return $plaintext;
     }
 
-    /**
-     * @info concrete encryptors override this when the nonce derivation depends on per-version key material; default uses the current-version nonce key for BC
-     */
+    /* extension point: override when the nonce derivation depends on per-version key material */
     protected function generateNonceForSaltVersion(string $data, string $saltVersion): string
     {
         return $this->generateNonce($data);
@@ -259,21 +277,18 @@ abstract class AbstractEncryptor implements EncryptorInterface
         return $this->initialVectorLengthCache = $initialVectorLength;
     }
 
-    /**
-     * @info the `$masterKey` argument is the operator-configured per-version secret (the bundle config still calls this value `salt` for historical reasons, but it is used as HKDF input keying material, not as an HKDF salt). See SDE-156.
-     */
+    /* the config calls this value `salt`, but it is HKDF input keying material — the HKDF salt is intentionally empty */
     protected function deriveKey(string $masterKey, string $information): string
     {
         return \hash_hkdf('sha256', $masterKey, 32, $information);
     }
 
-    /** @return array<string, string> the HKDF-derived nonce keys keyed by salt version, for subclasses that derive deterministic nonces per epoch */
+    /** @return array<string, string> */
     protected function getNonceKeysBySaltVersion(): array
     {
         return $this->nonceKeysBySaltVersion;
     }
 
-    /** @info canonical length-prefixed HMAC input prevents ambiguity between concatenated fields of variable length */
     protected function computeMessageAuthenticationCode(
         string $formatVersion,
         string $saltVersion,
@@ -291,7 +306,6 @@ abstract class AbstractEncryptor implements EncryptorInterface
         return \hash_hmac(static::HASH_ALGORITHM, $canonical, $macKey, true);
     }
 
-    /** @info legacy (pre-v1) HMAC over `algorithm . ciphertext . nonce` — kept for backward-compatible decryption of data written before v4.0.0 */
     protected function computeLegacyMessageAuthenticationCode(
         string $algorithm,
         string $ciphertext,
@@ -301,12 +315,7 @@ abstract class AbstractEncryptor implements EncryptorInterface
         return \hash_hmac(static::HASH_ALGORITHM, $algorithm . $ciphertext . $nonce, $macKey, true);
     }
 
-    /**
-     * @info treats a value as already-encrypted when its first `GLUE`-delimited segment is the literal
-     *   `ENCRYPTION_MARKER` and the payload segments are valid base64, so `encrypt()` leaves it untouched.
-     *   The `<ENC>\0` prefix is therefore reserved: a plaintext that starts with it and mimics the
-     *   ciphertext shape is passed through as-is. This checks shape only, not the MAC.
-     */
+    /* shape only, never the MAC — which is what reserves the `<ENC>\0` prefix; see the README */
     protected function looksEncrypted(string $data): bool
     {
         if (false === \str_starts_with($data, static::ENCRYPTION_MARKER . static::GLUE)) {

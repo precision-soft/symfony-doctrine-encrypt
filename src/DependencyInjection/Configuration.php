@@ -46,13 +46,12 @@ class Configuration implements ConfigurationInterface
         $nodeBuilder->scalarNode('legacy_salt_version')
             ->defaultNull();
 
+        /* both resolve to `[]`, read as "no filter" — a default on a scalar prototype is never consulted, so declaring one here would only look like it configured something */
         $nodeBuilder->arrayNode('enabled_types')
-            ->scalarPrototype()
-            ->defaultNull();
+            ->scalarPrototype();
 
         $nodeBuilder->arrayNode('encryptors')
-            ->scalarPrototype()
-            ->defaultNull();
+            ->scalarPrototype();
 
         $rootNode
             ->validate()

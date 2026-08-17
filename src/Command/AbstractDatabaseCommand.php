@@ -163,7 +163,6 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
                 $this->applyKeysetPagination($queryBuilder, $identifierFieldNames, $lastIdentifierValues);
             }
 
-            /** @info SELECT runs with the real encryptor so entity properties hold plaintext (or pass-through on non-encrypted data); the FakeEncryptor swap is intentionally deferred until the flush phase below */
             $entities = $queryBuilder->getQuery()->getResult();
 
             if ([] === $entities) {
@@ -185,7 +184,7 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
                     $progressBar->advance();
                 }
 
-                /** @info for the decrypt path, swap to FakeEncryptor only around flush so plaintext from the SELECT phase above is written back unchanged */
+                /* the swap must wrap the flush alone: the SELECT above has to run with the real encryptor, or the plaintext it loaded would be re-encrypted on write */
                 $resetEncryptors = true === $useFakeEncryptors
                     ? $this->resetEncryptorsToFake($entityMetadataDto->getEncryptionFields())
                     : null;
@@ -253,7 +252,7 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
             $identifierFieldName = $identifierFieldNames[0];
             $value = $lastIdentifierValues[$identifierFieldName];
 
-            /** @info skip keyset pagination for null identifiers — null PKs cannot be compared with > */
+            /* NULL is never greater than anything, so a null identifier cannot be paginated on */
             if (null === $value) {
                 return;
             }
@@ -271,7 +270,7 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
         foreach ($identifierFieldNames as $index => $identifierFieldName) {
             $value = $lastIdentifierValues[$identifierFieldName];
 
-            /** @info skip keyset pagination for null identifiers — null PKs cannot be compared with > */
+            /* NULL is never greater than anything, so a null identifier cannot be paginated on */
             if (null === $value) {
                 continue;
             }

@@ -9,7 +9,11 @@ create_env() {
         touch ${DOCKER_PATH}.env.local
     fi
 
-    rm -rf .git/hooks && ln -s ../.dev/git-hooks .git/hooks
+    if [[ ! -L .git/hooks || $(readlink .git/hooks) != "../.dev/git-hooks" ]]; then
+        rm -rf .git/hooks && ln -s ../.dev/git-hooks .git/hooks
+    fi
+
+    ensure_dev_data_directories
 }
 
 create_env

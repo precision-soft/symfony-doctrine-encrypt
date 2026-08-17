@@ -1,10 +1,16 @@
 includes:
-    - phpstan-baseline.neon
+    - vendor/phpstan/phpstan-mockery/extension.neon
 
 parameters:
     level: 8
     paths:
         - src/
         - tests/
-    bootstrapFiles:
-        - vendor/bin/.phpunit/phpunit-11.5-0/vendor/autoload.php
+    ignoreErrors:
+        -
+            # The test drives `getEncryptor()`'s rejection branch, which exists precisely for a name that is not a
+            # real class. Passing a `class-string` here would make the branch unreachable.
+            identifier: argument.type
+            path: tests/Service/EncryptorFactoryTest.php
+            message: '#^Parameter \#1 \$encryptorClass of method PrecisionSoft\\Doctrine\\Encrypt\\Service\\EncryptorFactory\:\:getEncryptor\(\) expects class\-string, string given\.$#'
+            count: 1

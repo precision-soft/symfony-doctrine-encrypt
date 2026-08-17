@@ -2,10 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [v4.5.0] - 2026-08-17 - Identifier-complete lookups, no key material in serialize, and a real database suite
+
+### Fixed
+
+- `EntityService::hasEncryptedValue()` — returned a verdict derived from an unrelated row when the entity was not fully identified. The guard tested `in_array(null, $identifiers, true)`, which can never be true: Doctrine's `getIdentifierValues()` **omits** null identifiers rather than returning them, so a transient entity yielded `[]` and a partly-populated composite key yielded a short array. Both fell through and built a `SELECT` with no `WHERE` clause — or with only part of one — so the method answered from whatever row the database returned first. The identifier set is now required to be complete, and no query is issued otherwise. Found by the new integration suite; the unit tests could not see it because they mock the connection
+- `phpstan-baseline.neon` — **deleted.** It was 61 lines / 10 entries / 18 suppressed occurrences, and eight of those were a single habit: `base64_decode(…, true)` returns `string|false` and the crypto tests consumed the result directly. Decoding now goes through `tests/Utility/Base64Decoder`, which asserts the payload really is strict base64 instead of letting an invalid one surface as a `TypeError` three lines later — and the same helper replaced three `assert(false !== …)` narrowings that `zend.assertions=-1` had compiled out in every environment, the containers included. The rest were seventeen `/** @var X|MockInterface */` and `/** @var X */` docblocks over `MockContainerTrait::get()`, whose generic return type already yields the correct `MockInterface&T` and which the docblocks were overriding with something weaker, and two `assertIsArray()` calls on typed returns, now assertions on the factory's actual keys and type names. Level 8 is `[OK]` with two `ignoreErrors` entries in
+  `phpstan.neon`, each stating its reason
+- `AbstractEncryptor::encryptWithSaltVersion()` — did not apply the already-encrypted pass-through guard that `encrypt()` applies, so the write path stored a marker-shaped value untouched while the deterministic lookup path re-encrypted it. A `WHERE ... IN (...)` built from `getDeterministicCiphertextCandidates()` / `setEncryptedParameterInList()` could therefore never match the row that had been written. The guard is applied after the salt-version check, so an unknown version remains a loud error rather than a silent pass-through
+
+### Changed
+
+- `AbstractEncryptor::__serialize()` / `__unserialize()` — added, and both throw. An encryptor holds the HKDF-derived encryption, authentication and nonce subkeys in ordinary properties, so `serialize()` previously wrote them verbatim into whatever store the caller was using — a session, a cache entry, a queued message. `__debugInfo()` only ever covered `var_dump()`/`print_r()`. Refusing is louder and safer than emitting a redacted object that would then decrypt nothing. **`var_export()` is not covered and cannot be**: PHP provides no hook for it, so it is documented in the README's Security considerations instead
+- `EntityService::getEncryptedFields()` — the unknown-class guard was an `assert()`, which `zend.assertions=-1` compiles out in production *and* in this project's containers, so it had never executed in any environment. It is now a real check throwing `Exception`, matching the two sibling guards converted before it. Callers passing a class name that does not exist now get a message naming the bundle and the class instead of a Doctrine mapping error further down
+- `Configuration` — dropped `defaultNull()` from the `enabled_types` and `encryptors` scalar prototypes. A default declared on a prototype is never consulted; both nodes resolved to `[]` before and after, which is now pinned by a test
+- comments across the package normalized to the house rule — the default is no comment, and a warranted one is a single short line. Every multi-line rationale block, narrative test docblock and shell section header was removed; the `.dev/` scripts, the `Dockerfile` and the compose file now carry nothing but their shebang and one line about `tini` as PID 1. Nothing behavioral changed. `CONTRIBUTING.md` gained the two sections that now carry the rationale — *Development toolchain* (the pinned pcov and infection builds, the `php.dev.ini` overlay, the `db` profile, the mutation thresholds) and *Continuous integration* (the jobs, and why `--fail-on-skipped` is passed in CI only) — and its *Verification* section now documents `.dev/validate/all.sh` and its flags, replacing the stale description of the old hook
+
+### Added
+
+- `Contract\ExceptionInterface` and `Exception\Trait\ExceptionTrait` — exceptions now carry a structured `context` array alongside the message, read with `getContext()` and set with `setContext()` or the new fourth constructor argument. The context is purely additive: no existing message, code or previous throwable changed, so a consumer logging only `getMessage()` sees exactly what it saw before. Ported from `precision-soft/symfony-console`, which has carried it since v4.5.0, so every package in the portfolio now exposes the same contract. Note for consumers subclassing the package exception: a subclass that already declares its own `$context` property or a `getContext()`/`setContext()` method will collide with the trait
+- `tests/Functional/` — the first integration suite in this bundle's history, executing real SQL against both MySQL 8.4 and MariaDB 11.4. It proves what no unit test could: that an encrypted field is ciphertext in the column and plaintext in PHP, that `Aes256FixedType` is matchable in a `WHERE` clause (the entire reason the type exists), that a rotation-safe `IN (...)` lookup still finds rows written under a previous salt, that `hasEncryptedValue()` works against a real schema, and that the encrypt/decrypt commands migrate a real table idempotently and across batches. Every test is `#[Group('integration')]` and skips — never fails — when the database is absent
+- `composer test-integration` — runs the integration group; `composer test` now excludes it, so `composer check` stays fast and offline
+- coverage for two `EntityService` contracts the unit suite could not see. **`hasEncryptedValue()`'s `WHERE` clause is now asserted predicate by predicate**: the query-builder mock expected `andWhere()` and `setParameter()` with no arguments and no cardinality, so a query built with **no `WHERE` at all** satisfied it — the very defect this method was fixed for, since an unpredicated `SELECT` answers from an arbitrary row. Removing the clause now turns four tests red instead of none. **And the encrypted-field cache is asserted to be keyed by the entity class**: the key is `($managerName ?? '') . '|' . $class`, and without the class one entity is handed another's field list, which decides whether values are encrypted on write and decrypted on read
+- Tamper-matrix, adversarial-corpus and secret-hygiene test suites for the encryptors: every single-bit flip and truncation of a payload, cross-epoch salt-version substitution, format-version forgery, legacy-shape downgrade, all 256 single-byte plaintexts, block/IV-size boundaries, multi-megabyte values, and assertions that no dump or error path exposes the salt or any derived key
 
 ## [v4.4.0] - 2026-06-17 - Configurable batch size for encrypt and decrypt commands
 
@@ -252,7 +275,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `AbstractDatabaseCommand::processEntities()` — template method replacing duplicated `encrypt`/`decrypt` loops; manages progress bar, entity manager lifecycle, and encryptor swapping
 - `AbstractDatabaseCommand::applyKeysetPagination()` — keyset pagination support for both single and composite primary keys
 - `Configuration` — salt validation: minimum 32 characters enforced at bundle configuration time
-- `EncryptorFactory` — `encryptorsByTypeName` lookup cache for O(1) encryptor resolution by type name
+- `EncryptorFactory` — `encryptorsByTypeName` lookup cache for O (1) encryptor resolution by type name
 - PHPStan level 8 with baseline
 - Test classes: `ConfigurationTest`, `PrecisionSoftDoctrineEncryptExtensionTest`, `EntityMetadataDtoTest`, `AbstractEncryptorCryptoTest`, `AbstractDatabaseCommandTest`, `Aes256EncryptorTest`, `AbstractTypeTest`, `ExceptionTest`, `EncryptorFactoryExtendedTest`, `EntityServiceExtendedTest`, `PrecisionSoftDoctrineEncryptBundleTest`
 
@@ -341,7 +364,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PrecisionSoftDoctrineEncryptBundle` + `PrecisionSoftDoctrineEncryptExtension` + `Configuration` — Symfony DI integration and config tree
 - `EncryptorInterface` contract for custom encryptor implementations
 
-[Unreleased]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v4.4.0...HEAD
+[Unreleased]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v4.5.0...HEAD
+
+[v4.5.0]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v4.4.0...v4.5.0
 
 [v4.4.0]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v4.3.1...v4.4.0
 

@@ -13,6 +13,7 @@ use PHPUnit\Framework\TestCase;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256Encryptor;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256FixedEncryptor;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\FakeEncryptor;
+use PrecisionSoft\Doctrine\Encrypt\Exception\DuplicateEncryptorException;
 use PrecisionSoft\Doctrine\Encrypt\Service\EncryptorFactory;
 use PrecisionSoft\Doctrine\Encrypt\Type\AbstractType;
 use PrecisionSoft\Doctrine\Encrypt\Type\Aes256Type;
@@ -83,6 +84,34 @@ final class EncryptorFactoryExtendedTest extends TestCase
 
         static::assertCount(1, $encryptorFactory->getEncryptors());
         static::assertSame([], $encryptorFactory->getTypeNames());
+    }
+
+    public function testFakeEncryptorCanNeverBeResolvedAsAFieldType(): void
+    {
+        $salt = \str_repeat('f', 32);
+
+        $encryptorFactory = new EncryptorFactory([
+            new Aes256Encryptor($salt),
+            new Aes256FixedEncryptor($salt),
+            new FakeEncryptor(),
+        ]);
+
+        static::assertNull((new FakeEncryptor())->getTypeName());
+        static::assertNull((new FakeEncryptor())->getTypeClass());
+
+        foreach ($encryptorFactory->getTypeNames() as $typeName) {
+            static::assertNotInstanceOf(FakeEncryptor::class, $encryptorFactory->getEncryptorByType($typeName));
+        }
+    }
+
+    public function testDuplicateEncryptorIsRejectedAtConstructionNotAtLookup(): void
+    {
+        $salt = \str_repeat('f', 32);
+
+        $this->expectException(DuplicateEncryptorException::class);
+        $this->expectExceptionMessage('multiple encryptors defined for type `' . Aes256Type::getFullName() . '`');
+
+        new EncryptorFactory([new Aes256Encryptor($salt), new Aes256Encryptor($salt)]);
     }
 
     public function testGetEncryptorByTypeIteratesThroughAllEncryptors(): void

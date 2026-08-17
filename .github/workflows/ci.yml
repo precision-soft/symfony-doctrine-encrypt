@@ -1,0 +1,143 @@
+name: ci
+
+on:
+    push:
+        branches: [ main ]
+    pull_request:
+    workflow_dispatch:
+
+# read-only: nothing here tags or publishes, so a write-scoped token would only ever be an offer
+permissions:
+    contents: read
+
+# A second push to the same branch makes the first run's answer worthless before it finishes.
+concurrency:
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    # these read the same bytes on every interpreter, so once rather than three times; php-cs-fixer
+    # would also print a meaningless min-version warning above composer.json's floor
+    static:
+        runs-on: ubuntu-latest
+        steps:
+            -   uses: actions/checkout@v4
+            -   uses: shivammathur/setup-php@v2
+                with:
+                    php-version: '8.2'
+                    coverage: none
+            -   name: validate the manifest
+                run: composer validate --strict
+            -   name: resolve the composer cache directory
+                id: composer-cache
+                run: echo "path=$(composer config --global cache-files-dir)" >> "${GITHUB_OUTPUT}"
+            -   uses: actions/cache@v4
+                with:
+                    path: ${{ steps.composer-cache.outputs.path }}
+                    key: composer-8.2-${{ hashFiles('composer.lock') }}
+                    restore-keys: composer-8.2-
+            # installed, never resolved: a job resolving its own would certify this code with a different analyser
+            -   name: install the locked dependencies
+                run: composer install --no-progress --no-interaction --prefer-dist
+            -   name: cs check
+                run: composer cs-check
+
+    # phpstan's inference follows the interpreter, so it belongs in the matrix; 8.3 and 8.4 are the
+    # versions the package claims to support and, until this workflow, were only ever run by hand
+    test:
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                php: [ '8.2', '8.3', '8.4' ]
+        steps:
+            -   uses: actions/checkout@v4
+            -   uses: shivammathur/setup-php@v2
+                with:
+                    php-version: ${{ matrix.php }}
+                    coverage: none
+            -   name: resolve the composer cache directory
+                id: composer-cache
+                run: echo "path=$(composer config --global cache-files-dir)" >> "${GITHUB_OUTPUT}"
+            -   uses: actions/cache@v4
+                with:
+                    path: ${{ steps.composer-cache.outputs.path }}
+                    key: composer-${{ matrix.php }}-${{ hashFiles('composer.lock') }}
+                    restore-keys: composer-${{ matrix.php }}-
+            -   name: install the locked dependencies
+                run: composer install --no-progress --no-interaction --prefer-dist
+            # simple-phpunit builds a phpunit tree composer.lock does not describe; cached after the
+            # install, since composer owns vendor/ and would clean a pre-restored directory back out
+            -   uses: actions/cache@v4
+                with:
+                    path: vendor/bin/.phpunit
+                    key: phpunit-${{ matrix.php }}-${{ hashFiles('composer.lock') }}
+            -   name: phpstan
+                run: composer phpstan
+            -   name: test
+                run: composer test
+
+    # real servers, the only thing that can check a type against one; one interpreter is enough, since
+    # what this job adds is the server and not the language version
+    integration:
+        runs-on: ubuntu-latest
+        services:
+            mysql:
+                image: mysql:8.4
+                env:
+                    MYSQL_ROOT_PASSWORD: root
+                    MYSQL_DATABASE: test
+                ports: [ '3306:3306' ]
+                options: >-
+                    --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+                    --health-interval=5s
+                    --health-timeout=5s
+                    --health-retries=20
+            mariadb:
+                image: mariadb:11.4
+                env:
+                    MARIADB_ROOT_PASSWORD: root
+                    MARIADB_DATABASE: test
+                ports: [ '3307:3306' ]
+                options: >-
+                    --health-cmd="healthcheck.sh --connect --innodb_initialized"
+                    --health-interval=5s
+                    --health-timeout=5s
+                    --health-retries=20
+        env:
+            DATABASE_URL_MYSQL: mysql://root:root@127.0.0.1:3306/test?serverVersion=8.4.0
+            DATABASE_URL_MARIADB: mysql://root:root@127.0.0.1:3307/test?serverVersion=11.4.0-MariaDB
+        steps:
+            -   uses: actions/checkout@v4
+            -   uses: shivammathur/setup-php@v2
+                with:
+                    php-version: '8.2'
+                    extensions: openssl, pdo_mysql
+                    coverage: none
+            -   name: resolve the composer cache directory
+                id: composer-cache
+                run: echo "path=$(composer config --global cache-files-dir)" >> "${GITHUB_OUTPUT}"
+            -   uses: actions/cache@v4
+                with:
+                    path: ${{ steps.composer-cache.outputs.path }}
+                    key: composer-8.2-${{ hashFiles('composer.lock') }}
+                    restore-keys: composer-8.2-
+            -   name: install the locked dependencies
+                run: composer install --no-progress --no-interaction --prefer-dist
+            # --fail-on-skipped, passed here and not in phpunit.xml.dist so local connect-and-skip stays:
+            # without it a broken DATABASE_URL prints a screen of green skips and exits 0
+            -   name: integration suite
+                run: composer test-integration -- --fail-on-skipped
+
+    # `--locked` reads composer.lock, so no vendor/ and no install step; kept out of `composer check`
+    # because it is the only section needing the network
+    audit:
+        runs-on: ubuntu-latest
+        steps:
+            -   uses: actions/checkout@v4
+            -   uses: shivammathur/setup-php@v2
+                with:
+                    php-version: '8.2'
+                    coverage: none
+            -   name: audit the locked dependencies
+                run: composer deps-audit

@@ -11,7 +11,8 @@ namespace PrecisionSoft\Doctrine\Encrypt\Encryptor;
 use PrecisionSoft\Doctrine\Encrypt\Contract\EncryptorInterface;
 
 /**
- * @info pass-through encryptor used only during the encrypt/decrypt migration commands so re-reads do not re-encrypt/decrypt in-flight data
+ * Registered unconditionally, yet reachable by no entity field, because `getTypeName()` is null; the migration commands swap it in so re-reads do not re-encrypt in-flight data.
+ *
  * @internal
  */
 class FakeEncryptor implements EncryptorInterface

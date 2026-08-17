@@ -14,6 +14,7 @@ use PrecisionSoft\Doctrine\Encrypt\Encryptor\AbstractEncryptor;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256Encryptor;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256FixedEncryptor;
 use PrecisionSoft\Doctrine\Encrypt\Exception\Exception;
+use PrecisionSoft\Doctrine\Encrypt\Test\Utility\Base64Decoder;
 
 /** @internal */
 final class AbstractEncryptorCryptoTest extends TestCase
@@ -54,7 +55,7 @@ final class AbstractEncryptorCryptoTest extends TestCase
         $secondAes256FixedEncryptor->decrypt($encryptedA);
     }
 
-    /** @info indirect test: if encKey == macKey, swapping ciphertext and mac would still verify */
+    /* indirect: were the encryption and MAC keys equal, swapping the ciphertext and MAC segments would still verify */
     public function testHkdfDerivesSeparateEncryptionAndMacKeys(): void
     {
         $aes256Encryptor = new Aes256Encryptor(self::SALT);
@@ -77,7 +78,7 @@ final class AbstractEncryptorCryptoTest extends TestCase
         $encrypted = $aes256Encryptor->encrypt('mac-test');
 
         $parts = \explode("\0", $encrypted);
-        $rawCiphertext = \base64_decode($parts[3], true);
+        $rawCiphertext = Base64Decoder::decodeStrict($parts[3]);
         $rawCiphertext[0] = \chr(\ord($rawCiphertext[0]) ^ 0x01);
         $parts[3] = \base64_encode($rawCiphertext);
         $tampered = \implode("\0", $parts);
@@ -94,7 +95,7 @@ final class AbstractEncryptorCryptoTest extends TestCase
         $encrypted = $aes256Encryptor->encrypt('nonce-tamper-test');
 
         $parts = \explode("\0", $encrypted);
-        $rawNonce = \base64_decode($parts[5], true);
+        $rawNonce = Base64Decoder::decodeStrict($parts[5]);
         $rawNonce[0] = \chr(\ord($rawNonce[0]) ^ 0x01);
         $parts[5] = \base64_encode($rawNonce);
         $tampered = \implode("\0", $parts);
@@ -135,7 +136,6 @@ final class AbstractEncryptorCryptoTest extends TestCase
         $aes256Encryptor->decrypt($tampered);
     }
 
-    /** @info MAC covers version + salt version + algorithm + ciphertext + nonce; verifies structure and base64 validity */
     public function testMacCoversAlgorithmIdentifier(): void
     {
         $aes256FixedEncryptor = new Aes256FixedEncryptor(self::SALT);
@@ -146,10 +146,13 @@ final class AbstractEncryptorCryptoTest extends TestCase
         static::assertSame(AbstractEncryptor::ENCRYPTION_MARKER, $parts[0]);
         static::assertSame(AbstractEncryptor::FORMAT_VERSION_V1, $parts[1]);
         static::assertSame(AbstractEncryptor::DEFAULT_SALT_VERSION, $parts[2]);
-        static::assertSame(true, false !== \base64_decode($parts[3], true));
-        static::assertSame(true, false !== \base64_decode($parts[4], true));
-        static::assertSame(true, false !== \base64_decode($parts[5], true));
-        static::assertSame(32, \strlen(\base64_decode($parts[4], true)));
+        $ciphertext = Base64Decoder::decodeStrict($parts[3]);
+        $mac = Base64Decoder::decodeStrict($parts[4]);
+        $nonce = Base64Decoder::decodeStrict($parts[5]);
+
+        static::assertNotSame('', $ciphertext);
+        static::assertSame(32, \strlen($mac));
+        static::assertNotSame('', $nonce);
     }
 
     public function testDecryptWithTooFewPartsThrowsException(): void
@@ -258,7 +261,7 @@ final class AbstractEncryptorCryptoTest extends TestCase
         $plaintext = 'secret-value-do-not-leak';
 
         $encrypted = $aes256FixedEncryptor->encrypt($plaintext);
-        $rawNonce = \base64_decode(\explode("\0", $encrypted)[5], true);
+        $rawNonce = Base64Decoder::decodeStrict(\explode("\0", $encrypted)[5]);
 
         static::assertStringNotContainsString($plaintext, $rawNonce);
         static::assertStringNotContainsString($plaintext, \bin2hex($rawNonce));
@@ -269,7 +272,7 @@ final class AbstractEncryptorCryptoTest extends TestCase
         $aes256FixedEncryptor = new Aes256FixedEncryptor(self::SALT);
         $encrypted = $aes256FixedEncryptor->encrypt('nonce-length-test');
 
-        $rawNonce = \base64_decode(\explode("\0", $encrypted)[5], true);
+        $rawNonce = Base64Decoder::decodeStrict(\explode("\0", $encrypted)[5]);
         $expectedLength = \openssl_cipher_iv_length('AES-256-CTR');
 
         static::assertSame($expectedLength, \strlen($rawNonce));
@@ -292,7 +295,7 @@ final class AbstractEncryptorCryptoTest extends TestCase
         $aes256Encryptor = new Aes256Encryptor(self::SALT);
         $encrypted = $aes256Encryptor->encrypt('random-nonce-length-test');
 
-        $rawNonce = \base64_decode(\explode("\0", $encrypted)[5], true);
+        $rawNonce = Base64Decoder::decodeStrict(\explode("\0", $encrypted)[5]);
         $expectedLength = \openssl_cipher_iv_length('AES-256-CTR');
 
         static::assertSame($expectedLength, \strlen($rawNonce));
@@ -422,12 +425,9 @@ final class AbstractEncryptorCryptoTest extends TestCase
 
         [, $version, $saltVersion, $base64Ciphertext, $base64Mac, $base64Nonce] = \explode("\0", $encrypted);
 
-        $ciphertext = \base64_decode($base64Ciphertext, true);
-        $mac = \base64_decode($base64Mac, true);
-        $nonce = \base64_decode($base64Nonce, true);
-        \assert(false !== $ciphertext);
-        \assert(false !== $mac);
-        \assert(false !== $nonce);
+        $ciphertext = Base64Decoder::decodeStrict($base64Ciphertext);
+        $mac = Base64Decoder::decodeStrict($base64Mac);
+        $nonce = Base64Decoder::decodeStrict($base64Nonce);
 
         $algorithm = 'AES-256-CTR';
         $macKey = \hash_hkdf('sha256', self::SALT, 32, 'authentication');
@@ -460,6 +460,71 @@ final class AbstractEncryptorCryptoTest extends TestCase
         static::assertSame($encrypted, $aes256Encryptor->encrypt($encrypted));
     }
 
+    public function testMarkerShapedPlaintextSurvivesEncryptionAndIsThenUnreadable(): void
+    {
+        $aes256Encryptor = new Aes256Encryptor(self::SALT);
+
+        $markerShaped = \implode(
+            "\0",
+            [
+                AbstractEncryptor::ENCRYPTION_MARKER,
+                'v1',
+                AbstractEncryptor::DEFAULT_SALT_VERSION,
+                \base64_encode('aaaa'),
+                \base64_encode('bbbb'),
+                \base64_encode('cccc'),
+            ],
+        );
+
+        static::assertSame($markerShaped, $aes256Encryptor->encrypt($markerShaped));
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('invalid message authentication code');
+
+        $aes256Encryptor->decrypt($markerShaped);
+    }
+
+    public function testMarkerPrefixedPlaintextWithUndecodableSegmentsRoundTrips(): void
+    {
+        $aes256Encryptor = new Aes256Encryptor(self::SALT);
+        $value = AbstractEncryptor::ENCRYPTION_MARKER . "\0" . 'v1' . "\0" . 'default' . "\0" . '!!!' . "\0" . '!!!' . "\0" . '!!!';
+
+        static::assertSame($value, $aes256Encryptor->decrypt($aes256Encryptor->encrypt($value)));
+    }
+
+    public function testEncryptWithSaltVersionOfAlreadyEncryptedPassesThrough(): void
+    {
+        $aes256FixedEncryptor = new Aes256FixedEncryptor(self::SALT);
+        $encrypted = $aes256FixedEncryptor->encrypt('passthrough-explicit-version');
+
+        static::assertSame(
+            $encrypted,
+            $aes256FixedEncryptor->encryptWithSaltVersion($encrypted, AbstractEncryptor::DEFAULT_SALT_VERSION),
+        );
+    }
+
+    public function testEncryptAndEncryptWithSaltVersionAgreeOnAMarkerShapedPlaintext(): void
+    {
+        $aes256FixedEncryptor = new Aes256FixedEncryptor(self::SALT);
+
+        $markerShaped = \implode(
+            "\0",
+            [
+                AbstractEncryptor::ENCRYPTION_MARKER,
+                'v1',
+                AbstractEncryptor::DEFAULT_SALT_VERSION,
+                \base64_encode('not'),
+                \base64_encode('really'),
+                \base64_encode('encrypted'),
+            ],
+        );
+
+        static::assertSame(
+            $aes256FixedEncryptor->encrypt($markerShaped),
+            $aes256FixedEncryptor->encryptWithSaltVersion($markerShaped, AbstractEncryptor::DEFAULT_SALT_VERSION),
+        );
+    }
+
     public function testAes256AndAes256FixedCanDecryptEachOther(): void
     {
         $salt = self::SALT;
@@ -468,14 +533,12 @@ final class AbstractEncryptorCryptoTest extends TestCase
 
         $plaintext = 'cross-test';
 
-        /** @info same salt + algorithm = same derived keys, so cross-decryption succeeds */
         $encryptedByFixed = $aes256FixedEncryptor->encrypt($plaintext);
         $decryptedByRandom = $aes256Encryptor->decrypt($encryptedByFixed);
 
         static::assertSame($plaintext, $decryptedByRandom);
     }
 
-    /** @info builds a pre-v4.0.0 (4-part, non-versioned) ciphertext using the legacy HMAC layout to verify backward-compatible decryption */
     private static function produceLegacyCiphertext(string $salt, string $plaintext): string
     {
         $algorithm = 'AES-256-CTR';
@@ -484,7 +547,7 @@ final class AbstractEncryptorCryptoTest extends TestCase
         $nonce = \random_bytes(16);
 
         $ciphertext = \openssl_encrypt($plaintext, $algorithm, $encryptionKey, \OPENSSL_RAW_DATA, $nonce);
-        \assert(false !== $ciphertext);
+        static::assertIsString($ciphertext);
 
         $mac = \hash_hmac('sha256', $algorithm . $ciphertext . $nonce, $macKey, true);
 

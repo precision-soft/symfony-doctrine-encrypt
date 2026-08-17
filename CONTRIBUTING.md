@@ -10,8 +10,7 @@ Prerequisites:
 - Composer
 - Docker (the repository ships a containerized development shell under [`.dev/`](./.dev/))
 
-The repository uses a Docker-based development shell driven by the [`./dc`](./dc) wrapper (a thin Docker
-Compose wrapper), which also installs the repository git hooks (see the `install-hooks` script in
+The repository uses a Docker-based development shell driven by the [`./dc`](./dc) wrapper (a thin Docker Compose wrapper), which also installs the repository git hooks (see the `install-hooks` script in
 [`composer.json`](./composer.json)):
 
 ```bash
@@ -23,8 +22,7 @@ Inside the container, run the verification commands described below.
 
 ## Verification
 
-The development shell profile ([`.dev/docker/.profile`](./.dev/docker/.profile)) defines convenience
-functions:
+The development shell profile ([`.dev/docker/.profile`](./.dev/docker/.profile)) defines convenience functions:
 
 - `ci` / `cu` — `composer install` / `composer update`
 - `pfix` — run `php-cs-fixer` (PER-CS 2.0 code style)
@@ -32,15 +30,39 @@ functions:
 - `pstan` — run `phpstan` (level 8 static analysis)
 - `full` — run `composer install`, then `pfix`, `punit`, and `pstan` in sequence
 
-Run the full suite before opening a pull request:
+The gate itself lives in one place — [`.dev/validate/all.sh`](./.dev/validate/all.sh) — so a section is added once and every caller inherits it. Run it from the host, before opening a pull request:
 
 ```bash
-full
+.dev/validate/all.sh                  # cs-check, phpstan, test
+.dev/validate/all.sh --audit          # also audit the locked dependencies (needs the network)
+.dev/validate/all.sh --integration    # also run the integration suite (starts mysql and mariadb)
+.dev/validate/all.sh --mutation       # also run mutation testing (slow: the suite runs once per mutant)
 ```
 
-The git `pre-commit` hook ([`.dev/git-hooks/pre-commit`](./.dev/git-hooks/pre-commit)) enforces the same
-checks on staged PHP files: `php-cs-fixer`, `php -l`, `phpstan`, and `simple-phpunit`. A commit is
-rejected if any of them fail.
+The three default sections are what `composer check` runs, so they stay fast and offline. The three flagged sections are deliberately outside it: `--audit` is the only section needing the network, `--integration` needs a running database, and `--mutation` costs a full suite run per mutant. The composer script is named `deps-audit` rather than `audit`, because a script named `audit` collides with Composer's own command and is skipped in silence.
+
+The git `pre-commit` hook ([`.dev/git-hooks/pre-commit`](./.dev/git-hooks/pre-commit)) is a deliberately thin caller of the same script (`--staged`, which does nothing unless the index carries a PHP change). It checks and never fixes — run `composer cs-fix` yourself. It adds one guard CI cannot: it reads the index and rejects a force-staged `.dev-data/` path or `.dev/docker/.env.local`, both of which are gitignored and, by the time a push reaches CI, would already be in the history.
+
+### Development toolchain
+
+The dev image ([`.dev/docker/Dockerfile`](./.dev/docker/Dockerfile)) pins the two tools the gate needs but `composer.lock` must not describe:
+
+- **pcov** is built from a pinned tarball rather than `pecl install`, so a rebuild cannot move the coverage driver under a mutation baseline. It is installed but disabled ([`.dev/docker/php.dev.ini`](./.dev/docker/php.dev.ini)) and enabled per run: `php -d pcov.enabled=1 vendor/bin/simple-phpunit --coverage-text`. The `composer mutation` script passes the same flag for the initial test run.
+- **infection** is a pinned phar, not a composer dev dependency: `composer.lock` is one converged toolchain shared across the portfolio, and a tool outside `composer check` must not move it. The pin is the last release supporting PHP 8.2, this package's own floor.
+
+`php.dev.ini` is copied to `conf.d/zz-dev.ini`, so it sorts after every `docker-php-ext-*.ini` and has the last word. It lifts `memory_limit`, which `php.ini-production` ships at 128M — the `--memory-limit` flag stays in the composer scripts anyway, because CI runs them on a runner that never sees this overlay. `opcache.enable_cli = 0` is an explicit no-op: the CLI SAPI never loads opcache in these images, so stale code in the container is an inode problem in the bind mount, and `./dc restart dev` is the fix. The `.profile` copy is the last layer in the image, because every layer below a `COPY` is invalidated with it and `.profile` is the file that keeps changing.
+
+The `db` profile is started only on request (`./dc --profile db up -d`). `DATABASE_URL_MYSQL` and `DATABASE_URL_MARIADB` are set on the `dev` service whether or not it is up, so a test connects and skips rather than branching on configuration. The database services publish no ports and store on `tmpfs`, so their credentials reach nothing and no state survives a restart.
+
+Mutation thresholds live in [`infection.json5`](./infection.json5) (`minMsi`, `minCoveredMsi`, both at 80). They are the measured baseline rounded down: raise them when the score improves, and never lower one to make a run pass.
+
+### Continuous integration
+
+[`.github/workflows/ci.yml`](./.github/workflows/ci.yml) cannot call `.dev/validate/all.sh` — the script needs Docker and a compose project — so it runs the same composer scripts natively across a PHP version matrix instead. Four jobs: `static` (out of the matrix, since `cs-check` reads the same bytes on every interpreter), `test` (`phpstan` and the suite on 8.2, 8.3 and 8.4, because phpstan's inference follows the interpreter), `integration` (against real MySQL 8.4 and MariaDB 11.4 services) and `audit`.
+
+The integration job passes `--fail-on-skipped`, which is deliberately not in `phpunit.xml.dist`: locally a missing database is a skip, so `composer check` stays offline, while in CI a broken `DATABASE_URL` must fail instead of printing a screen of green skips.
+
+Every job installs the locked dependencies and never resolves its own, so the analysers certify the code against the versions this repository ships. The `vendor/bin/.phpunit` cache step comes *after* the install, because `simple-phpunit` builds a tree `composer.lock` does not describe and composer owns `vendor/`, so it would clean a pre-restored directory back out.
 
 ## Development workflow
 
@@ -54,8 +76,7 @@ Before opening a pull request:
 ## Code style
 
 The repository enforces a strict, opinionated style on top of
-[PER-CS 2.0](https://www.php-fig.org/per/coding-style/). `php-cs-fixer` and `phpstan` (level 8) are the
-automated enforcers; the rules below are normative and contributions are expected to follow them.
+[PER-CS 2.0](https://www.php-fig.org/per/coding-style/). `php-cs-fixer` and `phpstan` (level 8) are the automated enforcers; the rules below are normative and contributions are expected to follow them.
 
 ### Naming
 
@@ -77,13 +98,11 @@ automated enforcers; the rules below are normative and contributions are expecte
   `null === $value`, `'x' === $value`, `0 === count($items)`.
 - **Never use the `!` negation operator.** Express conditions with explicit comparisons instead.
 - **No implicit boolean coercion.** Every condition must be an explicit comparison:
-  `true === $flag`, `null === $value`, `false === class_exists($class)`, `true === empty($items)`.
-  Never write bare `if ($var)`, `if (!$var)`, or `if (empty($var))`.
+  `true === $flag`, `null === $value`, `false === class_exists($class)`, `true === empty($items)`. Never write bare `if ($var)`, `if (!$var)`, or `if (empty($var))`.
 
 ### Imports
 
-- **All classes are imported via `use` at the top of the file.** Never reference a class by its
-  fully-qualified name inline (no `new \Foo\Bar\Baz()` or `\Foo\Bar\Baz::method()`).
+- **All classes are imported via `use` at the top of the file.** Never reference a class by its fully-qualified name inline (no `new \Foo\Bar\Baz()` or `\Foo\Bar\Baz::method()`).
 - On a naming conflict, use an alias: `use Foo\Bar\Baz as AliasedBaz;`.
 - Built-in PHP functions may keep the backslash prefix (`\sprintf`, `\time`, `\ini_get`); the `use`
   rule applies only to classes and interfaces.
@@ -101,19 +120,16 @@ Top-to-bottom order inside a class body:
 7. Static methods — `public` → `protected` → `private`.
 8. Instance methods — `public` → `protected` → `private`.
 
-Getters/setters do not form their own block: they follow the declaration order of the properties they
-access, grouped by visibility.
+Getters/setters do not form their own block: they follow the declaration order of the properties they access, grouped by visibility.
 
 ### Getters and setters
 
 - Always `getXyz()` / `setXyz()` for property accessors — never `isXyz()`, even for booleans.
-- `hasXyz()` is allowed for boolean query / existence-check methods (for example `hasPermission()`);
-  these are query methods, not property getters.
+- `hasXyz()` is allowed for boolean query / existence-check methods (for example `hasPermission()`); these are query methods, not property getters.
 
 ### Exceptions
 
-- Always throw **project-specific exceptions** from the project's own `Exception` namespace. Never throw
-  generic `\Exception` or `\RuntimeException`.
+- Always throw **project-specific exceptions** from the project's own `Exception` namespace. Never throw generic `\Exception` or `\RuntimeException`.
 
 ### Doctrine entities
 
@@ -147,6 +163,5 @@ If the issue is security-sensitive, do not file it publicly; follow [`SECURITY.m
 
 ## Security and support
 
-- For security issues, follow [`SECURITY.md`](./SECURITY.md): report privately through GitHub's private
-  vulnerability reporting with a minimal reproduction and impact assessment. Do not open a public issue.
+- For security issues, follow [`SECURITY.md`](./SECURITY.md): report privately through GitHub's private vulnerability reporting with a minimal reproduction and impact assessment. Do not open a public issue.
 - For non-security questions, use the standard issue tracker and include context (version, steps, logs).

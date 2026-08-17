@@ -20,6 +20,7 @@ use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\Persistence\Mapping\ClassMetadata;
 use Mockery;
 use Mockery\MockInterface;
+use PrecisionSoft\Doctrine\Encrypt\Contract\EncryptorInterface;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256Encryptor;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256FixedEncryptor;
 use PrecisionSoft\Doctrine\Encrypt\Exception\NonDeterministicEncryptorException;
@@ -132,9 +133,43 @@ final class EntityServiceExtendedTest extends AbstractTestCase
         static::assertSame(true, $entityService->hasEncryptedValue($entity, 'secretField'));
     }
 
+    public function testHasEncryptedValueReturnsFalseForAnUnidentifiedEntity(): void
+    {
+        $entity = new stdClass();
+
+        [$entityService,] = $this->createServiceWithDbalMock(
+            $entity,
+            'secretField',
+            'secret_field',
+            'my_table',
+            [],
+            $this->aes256Encryptor->encrypt('never-reached'),
+            ['id'],
+        );
+
+        static::assertSame(false, $entityService->hasEncryptedValue($entity, 'secretField'));
+    }
+
+    public function testHasEncryptedValueReturnsFalseForAPartialCompositeIdentifier(): void
+    {
+        $entity = new stdClass();
+
+        [$entityService,] = $this->createServiceWithDbalMock(
+            $entity,
+            'secretField',
+            'secret_field',
+            'my_table',
+            ['tenantId' => 10],
+            $this->aes256Encryptor->encrypt('never-reached'),
+            ['tenantId', 'userId'],
+        );
+
+        static::assertSame(false, $entityService->hasEncryptedValue($entity, 'secretField'));
+    }
+
     public function testSetEncryptedParameterSetsEncryptedValueOnQueryBuilder(): void
     {
-        $className = 'App\\Entity\\User';
+        $className = stdClass::class;
         $fieldName = 'email';
         $plaintext = 'user@example.com';
 
@@ -185,7 +220,7 @@ final class EntityServiceExtendedTest extends AbstractTestCase
 
     public function testSetEncryptedParameterWithCustomManager(): void
     {
-        $className = 'App\\Entity\\User';
+        $className = stdClass::class;
         $fieldName = 'email';
         $plaintext = 'user@example.com';
         $managerName = 'custom_manager';
@@ -238,7 +273,7 @@ final class EntityServiceExtendedTest extends AbstractTestCase
 
     public function testSetEncryptedParameterThrowsWhenEncryptorIsNotDeterministic(): void
     {
-        $className = 'App\\Entity\\User';
+        $className = stdClass::class;
         $fieldName = 'email';
 
         $encryptorFactory = $this->createEncryptorFactoryMock(
@@ -282,10 +317,9 @@ final class EntityServiceExtendedTest extends AbstractTestCase
         );
     }
 
-    /** @info SDE-153 — the new rotation-safe method produces one ciphertext per active salt version and wires them as an IN-list parameter so WHERE lookups see every epoch's row */
     public function testSetEncryptedParameterInListEmitsOneCandidatePerSaltVersion(): void
     {
-        $className = 'App\\Entity\\User';
+        $className = stdClass::class;
         $fieldName = 'email';
         $plaintext = 'user@example.com';
 
@@ -362,10 +396,9 @@ final class EntityServiceExtendedTest extends AbstractTestCase
         );
     }
 
-    /** @info SDE-153 — plain candidate listing without DBAL plumbing, for callers that build the WHERE clause themselves */
     public function testGetDeterministicCiphertextCandidatesReturnsAllEpochCiphertexts(): void
     {
-        $className = 'App\\Entity\\User';
+        $className = stdClass::class;
         $fieldName = 'email';
         $plaintext = 'user@example.com';
 
@@ -416,10 +449,9 @@ final class EntityServiceExtendedTest extends AbstractTestCase
         );
     }
 
-    /** @info SDE-153 — non-deterministic encryptors cannot participate in rotation-safe lookups */
     public function testGetDeterministicCiphertextCandidatesRejectsNonDeterministicEncryptor(): void
     {
-        $className = 'App\\Entity\\User';
+        $className = stdClass::class;
         $fieldName = 'email';
 
         $encryptorFactory = $this->createEncryptorFactoryMock(
@@ -449,7 +481,7 @@ final class EntityServiceExtendedTest extends AbstractTestCase
 
     public function testGetEncryptedFieldsCachedOnRepeatedLookup(): void
     {
-        $className = 'App\\Entity\\User';
+        $className = stdClass::class;
         $fieldName = 'email';
 
         $encryptorFactory = $this->createEncryptorFactoryMock(
@@ -494,6 +526,7 @@ final class EntityServiceExtendedTest extends AbstractTestCase
 
     /**
      * @param array<string, mixed> $identifiers
+     * @param list<string>|null $identifierFieldNames the mapped identifier fields, which differ from the keys of `$identifiers` exactly when the entity is not fully identified
      *
      * @return array{EntityService, Mockery\MockInterface}
      */
@@ -504,6 +537,7 @@ final class EntityServiceExtendedTest extends AbstractTestCase
         string $tableName,
         array $identifiers,
         mixed $rawDbValue,
+        ?array $identifierFieldNames = null,
     ): array {
         $ormClassMetadata = Mockery::mock(OrmClassMetadata::class);
         $ormClassMetadata->shouldReceive('getColumnName')
@@ -514,6 +548,8 @@ final class EntityServiceExtendedTest extends AbstractTestCase
         $ormClassMetadata->shouldReceive('getIdentifierValues')
             ->with($entity)
             ->andReturn($identifiers);
+        $ormClassMetadata->shouldReceive('getIdentifierFieldNames')
+            ->andReturn($identifierFieldNames ?? \array_keys($identifiers));
 
         foreach ($identifiers as $identifierField => $identifierValue) {
             $ormClassMetadata->shouldReceive('getColumnName')
@@ -528,9 +564,11 @@ final class EntityServiceExtendedTest extends AbstractTestCase
         $quotedColumnName = '"' . $columnName . '"';
         $quotedTableName = '"' . $tableName . '"';
 
+        $expectedQueryCount = \count($identifiers) === \count($identifierFieldNames ?? \array_keys($identifiers)) ? 1 : 0;
+
         $result = Mockery::mock(Result::class);
         $result->shouldReceive('fetchOne')
-            ->once()
+            ->times($expectedQueryCount)
             ->andReturn($rawDbValue);
 
         $dbalQueryBuilder = Mockery::mock(DbalQueryBuilder::class);
@@ -540,17 +578,24 @@ final class EntityServiceExtendedTest extends AbstractTestCase
         $dbalQueryBuilder->shouldReceive('from')
             ->with($quotedTableName)
             ->andReturnSelf();
-        $dbalQueryBuilder->shouldReceive('andWhere')
-            ->andReturnSelf();
-        $dbalQueryBuilder->shouldReceive('setParameter')
-            ->andReturnSelf();
+        /* the arguments and cardinality are the assertion: without them a query built with no `WHERE` at all satisfies these expectations */
+        foreach ($identifiers as $identifierField => $identifierValue) {
+            $dbalQueryBuilder->shouldReceive('andWhere')
+                ->with(\sprintf('"%s" = :%s', $identifierField, $identifierField))
+                ->times($expectedQueryCount)
+                ->andReturnSelf();
+            $dbalQueryBuilder->shouldReceive('setParameter')
+                ->with($identifierField, $identifierValue)
+                ->times($expectedQueryCount)
+                ->andReturnSelf();
+        }
         $dbalQueryBuilder->shouldReceive('executeQuery')
-            ->once()
+            ->times($expectedQueryCount)
             ->andReturn($result);
 
         $connection = Mockery::mock(Connection::class);
         $connection->shouldReceive('createQueryBuilder')
-            ->once()
+            ->times($expectedQueryCount)
             ->andReturn($dbalQueryBuilder);
         $connection->shouldReceive('getDatabasePlatform')
             ->andReturn($platform);
@@ -574,9 +619,12 @@ final class EntityServiceExtendedTest extends AbstractTestCase
         return [$entityService, $entityManager];
     }
 
+    /**
+     * @param array<int, string> $typeNames
+     */
     private function createEncryptorFactoryMock(
         array $typeNames,
-        mixed $encryptor,
+        EncryptorInterface $encryptor,
     ): MockInterface&EncryptorFactory {
         $encryptorFactory = Mockery::mock(EncryptorFactory::class);
         $encryptorFactory->shouldReceive('getTypeNames')

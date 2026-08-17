@@ -119,7 +119,6 @@ final class PrecisionSoftDoctrineEncryptExtensionTest extends TestCase
         );
     }
 
-    /** @info SDE-152 — single-salt shorthand still sets the legacy_salt_version parameter (pointing at `default`) for the encryptor constructor */
     public function testSingleSaltSetsLegacySaltVersionToDefault(): void
     {
         $extension = new PrecisionSoftDoctrineEncryptExtension();
@@ -136,7 +135,6 @@ final class PrecisionSoftDoctrineEncryptExtensionTest extends TestCase
         );
     }
 
-    /** @info SDE-152 — when no legacy_salt_version is configured alongside a salts map, the extension falls back to the FIRST configured version, NOT the current one */
     public function testLegacySaltVersionDefaultsToFirstConfiguredVersionWhenNotSupplied(): void
     {
         $extension = new PrecisionSoftDoctrineEncryptExtension();
@@ -161,7 +159,6 @@ final class PrecisionSoftDoctrineEncryptExtensionTest extends TestCase
         );
     }
 
-    /** @info SDE-152 — explicit `legacy_salt_version` config threads through to the container parameter */
     public function testExplicitLegacySaltVersionIsWired(): void
     {
         $extension = new PrecisionSoftDoctrineEncryptExtension();

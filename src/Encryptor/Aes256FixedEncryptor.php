@@ -24,7 +24,6 @@ class Aes256FixedEncryptor extends AbstractEncryptor implements DeterministicEnc
         return $this->generateNonceForSaltVersion($data, $this->currentSaltVersion);
     }
 
-    /** @info deterministic nonces MUST be produced under the correct epoch's nonce key so that WHERE lookups across a rotation window can enumerate every candidate ciphertext — see SDE-153 */
     protected function generateNonceForSaltVersion(string $data, string $saltVersion): string
     {
         $nonceKeys = $this->getNonceKeysBySaltVersion();

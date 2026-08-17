@@ -1,0 +1,34 @@
+{
+    // Mutation testing. Deliberately not part of `composer check`: it needs a coverage driver and it is
+    // orders of magnitude slower than the rest of the gate, so it lives behind `.dev/validate/all.sh
+    // --mutation` and behind `composer mutation`, next to --audit and --integration.
+    //
+    // Infection is a pinned phar in the image ( INFECTION_VERSION in .dev/docker/Dockerfile ), not a
+    // composer dev dependency, so composer.lock keeps the one converged toolchain it shares with the
+    // other six php repos.
+    source: {
+        directories: [
+            "src"
+        ],
+        excludes: [
+            // A dependency-injection closure, not logic: every mutant here is either killed by the
+            // container compiling or is a service definition nobody asserts on.
+            "Resources"
+        ]
+    },
+    // Both live under .dev-data/, which is gitignored in every repo of this portfolio, so a mutation
+    // run leaves nothing in `git status`.
+    tmpDir: ".dev-data/infection",
+    logs: {
+        text: ".dev-data/infection/infection.log",
+        summary: ".dev-data/infection/summary.log"
+    },
+    // Without a threshold infection prints a score and exits 0, so the gate section could never fail.
+    // These are the measured baseline rounded down, not an aspiration: raise them when the score
+    // improves, and never lower one to make a run pass.
+    minMsi: 80,
+    minCoveredMsi: 80,
+    mutators: {
+        "@default": true
+    }
+}
