@@ -58,11 +58,11 @@ Mutation thresholds live in [`infection.json5`](./infection.json5) (`minMsi`, `m
 
 ### Continuous integration
 
-[`.github/workflows/ci.yml`](./.github/workflows/ci.yml) cannot call `.dev/validate/all.sh` — the script needs Docker and a compose project — so it runs the same composer scripts natively across a PHP version matrix instead. Four jobs: `static` (out of the matrix, since `cs-check` reads the same bytes on every interpreter), `test` (`phpstan` and the suite on 8.2, 8.3 and 8.4, because phpstan's inference follows the interpreter), `integration` (against real MySQL 8.4 and MariaDB 11.4 services) and `audit`.
+[`.github/workflows/ci.yml`](./.github/workflows/ci.yml) cannot call `.dev/validate/all.sh` — the script needs Docker and a compose project — so it runs the same composer scripts natively across a PHP version matrix instead. Five jobs: `static`, `test` (`phpstan` and the suite on PHP 8.2 through 8.5), `integration` (real MySQL 8.4 and MariaDB 11.4), `latest-deps` (resolves the highest allowed dependency set on PHP 8.5, the only interpreter Symfony 8 installs on) and `audit`.
 
 The integration job passes `--fail-on-skipped`, which is deliberately not in `phpunit.xml.dist`: locally a missing database is a skip, so `composer check` stays offline, while in CI a broken `DATABASE_URL` must fail instead of printing a screen of green skips.
 
-Every job installs the locked dependencies and never resolves its own, so the analysers certify the code against the versions this repository ships. The `vendor/bin/.phpunit` cache step comes *after* the install, because `simple-phpunit` builds a tree `composer.lock` does not describe and composer owns `vendor/`, so it would clean a pre-restored directory back out.
+Every job except `latest-deps` installs the locked dependencies. That one lane deliberately resolves the upper dependency bound, while the others keep reproducible analyser and test versions. The `vendor/bin/.phpunit` cache step comes *after* the install, because `simple-phpunit` builds a tree `composer.lock` does not describe and composer owns `vendor/`, so it would clean a pre-restored directory back out.
 
 ## Development workflow
 

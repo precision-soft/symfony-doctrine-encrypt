@@ -22,15 +22,15 @@
         "doctrine/dbal": "4.*",
         "doctrine/orm": "3.*",
         "doctrine/persistence": "3.*",
-        "precision-soft/symfony-console": "^4.0",
-        "symfony/config": "7.*"
+        "precision-soft/symfony-console": "^4.7",
+        "symfony/config": "^7.0 || ^8.0"
     },
     "require-dev": {
         "friendsofphp/php-cs-fixer": "3.*",
         "phpstan/phpstan": "^2.0",
         "phpstan/phpstan-mockery": "^2.0",
         "phpunit/phpunit": "^11.5",
-        "precision-soft/symfony-phpunit": "^3.0"
+        "precision-soft/symfony-phpunit": "^3.6"
     },
     "autoload": {
         "psr-4": {

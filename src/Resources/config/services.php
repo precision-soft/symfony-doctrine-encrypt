@@ -9,6 +9,7 @@ declare(strict_types=1);
 use PrecisionSoft\Doctrine\Encrypt\Command\AbstractDatabaseCommand;
 use PrecisionSoft\Doctrine\Encrypt\Command\DatabaseDecryptCommand;
 use PrecisionSoft\Doctrine\Encrypt\Command\DatabaseEncryptCommand;
+use PrecisionSoft\Doctrine\Encrypt\Command\DatabaseRotateCommand;
 use PrecisionSoft\Doctrine\Encrypt\DependencyInjection\PrecisionSoftDoctrineEncryptExtension;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\AbstractEncryptor;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256Encryptor;
@@ -56,6 +57,10 @@ return static function (ContainerConfigurator $containerConfigurator): void {
         ->tag('console.command');
 
     $services->set(DatabaseDecryptCommand::class)
+        ->parent(AbstractDatabaseCommand::class)
+        ->tag('console.command');
+
+    $services->set(DatabaseRotateCommand::class)
         ->parent(AbstractDatabaseCommand::class)
         ->tag('console.command');
 

@@ -6,6 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [v4.6.0] - 2026-09-01 - Online salt rotation with resumable, verifiable batch runs
+
+### Added
+
+- `precision-soft:doctrine:database:rotate` rewrites loaded plaintext directly with the configured current salt, so online rotation no longer needs a database-wide plaintext interval between decrypt and encrypt commands.
+- `--entity`, `--from-id`, `--checkpoint` and `--dry-run` on all three database commands. Entity selection restricts a run to named classes, the checkpoint is a json file replaced atomically after every flushed batch so an interrupted run resumes where it stopped, and a dry run walks every selected row without writing.
+- `--verify` on `database:rotate` reads the stored columns back and fails unless every selected value carries the current salt version.
+- `AbstractEncryptor::getCurrentSaltVersion()` exposes the version new writes are stamped with, and `AbstractEncryptor::getCurrentEnvelopePrefix()` the envelope prefix they carry — so a caller never has to reassemble the envelope layout itself.
+
+### Changed
+
+- `symfony/config` now accepts 7.x and 8.x, and `precision-soft/symfony-console` is required from `^4.7`, the first release that allows Symfony 8 across every component it pulls in. Symfony 8 itself needs PHP 8.4, so a PHP 8.2 or 8.3 install still resolves Symfony 7. CI covers PHP 8.2 through 8.5 and adds a lane resolving the highest allowed dependency set.
+- The progress bar now counts the rows a run will actually walk, so a resume no longer reports a total it can never reach.
+
+### Fixed
+
+- `--verify` escaped nothing before matching the salt-version prefix, so a salt version containing `_` — legal under `SALT_VERSION_PATTERN` — was matched as a `LIKE` wildcard and rows written under a *different* salt could pass verification. The prefix is now escaped and matched with an explicit `ESCAPE` clause.
+- A checkpoint file listing an entity as completed replayed that entity's stale cursor on the next run, so reusing a checkpoint for a second rotation scanned no rows and still reported success. A completed entity now starts over.
+- `--from-id` was bound as a string against an integer identifier, which only works on engines that coerce silently. The value is now cast to the identifier's mapped type, and rejected when it cannot be.
+- `AbstractEncryptor` now rejects a salts map whose versions differ only by letter case; under a case-insensitive column collation those versions are indistinguishable to the prefix check `--verify` relies on.
+- `--verify` built its prefix from `FORMAT_VERSION_V1` rather than the encryptor's own current format version, so a subclass overriding `CURRENT_FORMAT_VERSION` would have seen every row reported as stale. It now asks the encryptor for the prefix.
+- A checkpoint cursor whose keys do not address the entity's identifier fields is now rejected. It previously fell through `applyKeysetPagination` as a null value and silently rescanned the table from the first row, or — for a composite identifier with no usable field — produced an empty `WHERE` group.
+- `--entity` now drops a repeated class name, which otherwise made `--from-id` refuse a single selected entity.
+
 ## [v4.5.0] - 2026-08-17 - Identifier-complete lookups, no key material in serialize, and a real database suite
 
 ### Fixed
@@ -364,7 +388,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `PrecisionSoftDoctrineEncryptBundle` + `PrecisionSoftDoctrineEncryptExtension` + `Configuration` — Symfony DI integration and config tree
 - `EncryptorInterface` contract for custom encryptor implementations
 
-[Unreleased]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v4.5.0...HEAD
+[Unreleased]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v4.6.0...HEAD
+
+[v4.6.0]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v4.5.0...v4.6.0
 
 [v4.5.0]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v4.4.0...v4.5.0
 

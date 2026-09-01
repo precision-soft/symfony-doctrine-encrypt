@@ -15,7 +15,7 @@ Symfony bundle for transparent AES-256 field-level encryption of Doctrine ORM en
 - PHP 8.2+ with `ext-openssl`
 - Doctrine ORM 3.*
 - Doctrine DBAL 4.*
-- Symfony 7.*
+- Symfony 7.* or 8.* (Symfony 8 itself requires PHP 8.4+)
 
 ## Installation
 
@@ -197,7 +197,13 @@ Decrypt an encrypted database (before disabling the bundle):
 php bin/console precision-soft:doctrine:database:decrypt
 ```
 
-Both commands process entities in batches of 50 and ask for confirmation before running. Pass `--no-interaction` to skip the confirmation prompt in automated environments.
+Rotate rows directly to the configured current salt without an intermediate plaintext database:
+
+```shell
+php bin/console precision-soft:doctrine:database:rotate
+```
+
+All three commands process entities in batches of 50 and ask for confirmation before running. Pass `--no-interaction` to skip the confirmation prompt in automated environments.
 
 Use the `--manager` option to target a specific Doctrine entity manager:
 
@@ -205,10 +211,35 @@ Use the `--manager` option to target a specific Doctrine entity manager:
 php bin/console precision-soft:doctrine:database:encrypt --manager=secondary
 ```
 
+### Running against a large database
+
+All three commands share the same options for splitting a long run into pieces you can supervise:
+
+| Option         | Effect                                                                                                                                      |
+|----------------|---------------------------------------------------------------------------------------------------------------------------------------------|
+| `--batch-size` | Rows loaded, flushed and cleared per iteration. Defaults to 50.                                                                             |
+| `--entity`     | Comma-separated entity class names to restrict the run to. A leading backslash is accepted. Defaults to every entity with encrypted fields. |
+| `--checkpoint` | Path to a json file holding the resume cursor, replaced atomically after every flushed batch.                                               |
+| `--from-id`    | Resume after this identifier. Requires a single `--entity` with a single identifier field.                                                  |
+| `--dry-run`    | Walk every selected row without writing entities or the checkpoint.                                                                         |
+
+`--verify` is specific to `database:rotate`, the command whose whole purpose is to leave every value on the current salt:
+
+```shell
+php bin/console precision-soft:doctrine:database:rotate \
+    --entity='App\Entity\User' \
+    --checkpoint=var/rotation.json \
+    --verify
+```
+
+It reads the stored columns back after the rewrite and fails unless every selected value carries the current salt version. Combined with `--dry-run` it becomes an audit: nothing is written, and the command still reports which fields are not yet on the current salt.
+
+**Checkpoints.** A checkpoint records the last identifier written per entity, and marks each entity completed when its pass finishes. Rerunning with the same path resumes an interrupted run from the last flushed batch, while an entity that already completed starts over — so the same file can be reused for a later rotation without silently scanning nothing. `--dry-run` never writes it, and `--from-id` overrides the stored cursor for that run.
+
 ## Security considerations
 
 - **Cipher and key derivation**: Encryption uses AES-256-CTR. Per-salt subkeys are derived via HKDF-SHA256 (`hash_hkdf()`) with distinct info strings (`'encryption'`, `'authentication'`, `'nonce'`), producing separate subkeys for each purpose. The raw salt is never used directly as a key. Authentication uses HMAC-SHA256.
-- **Salt stability and rotation**: Salts are the encryption key material. Versioned salts (see [Multi-salt configuration](#multi-salt-configuration-for-key-rotation)) let you add new salts without losing access to data written under older ones, because every ciphertext carries its own salt-version identifier. Dropping a salt from configuration makes every row previously written under it unreadable — always run `database:decrypt`/`database:encrypt` to migrate rows off the old version first.
+- **Salt stability and rotation**: Salts are the encryption key material. Versioned salts (see [Multi-salt configuration](#multi-salt-configuration-for-key-rotation)) let you add new salts without losing access to data written under older ones, because every ciphertext carries its own salt-version identifier. Dropping a salt from configuration makes every row previously written under it unreadable — always run `database:rotate` to migrate rows off the old version first.
 - **Non-deterministic vs deterministic**: `Aes256Type` uses a random nonce per encryption, so the same plaintext produces different ciphertext on each call — this is the secure default. `Aes256FixedType` uses a deterministic nonce derived from the plaintext, enabling `WHERE` queries but leaking the fact that two rows have the same value.
 - **MAC verification**: Every encrypted value includes an HMAC-SHA256 tag. Tampered or corrupted values are rejected on decryption. The MAC input is a canonical length-prefixed concatenation of `(format-version, salt-version, algorithm, ciphertext, nonce)`, which prevents cross-field ambiguity when any field has variable length.
 - **Raw string encryption**: Values are encrypted and decrypted as raw strings without any serialisation layer.
@@ -250,11 +281,10 @@ This is the path to use when you cannot decrypt the whole database at once. Old 
 2. Force every row through the current salt so old rows get re-encrypted under `v2`:
 
     ```shell
-    php bin/console precision-soft:doctrine:database:decrypt
-    php bin/console precision-soft:doctrine:database:encrypt
+    php bin/console precision-soft:doctrine:database:rotate
     ```
 
-   These commands only read and write through the application, so they never touch the old salt once `v1` is absent from the database.
+   The command reads through the application and flushes each batch with the current encryptor. Plaintext exists only in process memory for the loaded batch and is never persisted as an intermediate database state.
 
 3. Once every row is under `v2`, drop the old salt from configuration and redeploy:
 

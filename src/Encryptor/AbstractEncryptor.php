@@ -81,6 +81,13 @@ abstract class AbstractEncryptor implements EncryptorInterface
             $nonceKeys[$saltVersion] = $this->deriveKey($salt, 'nonce');
         }
 
+        /* a case-insensitive column collation cannot tell `v2` from `V2`, which is exactly what `database:rotate --verify` asks the database to do */
+        $saltVersions = \array_map('strval', \array_keys($encryptionKeys));
+
+        if (\count($saltVersions) !== \count(\array_unique(\array_map('strtolower', $saltVersions)))) {
+            throw new Exception('salt versions must not differ only by letter case');
+        }
+
         if (null === $legacySaltVersion) {
             $legacySaltVersion = \array_key_first($saltsByVersion);
         } elseif (false === \array_key_exists($legacySaltVersion, $saltsByVersion)) {
@@ -137,6 +144,19 @@ abstract class AbstractEncryptor implements EncryptorInterface
     public function getActiveSaltVersions(): array
     {
         return \array_keys($this->encryptionKeysBySaltVersion);
+    }
+
+    public function getCurrentSaltVersion(): string
+    {
+        return $this->currentSaltVersion;
+    }
+
+    /** the envelope prefix every value written under the current configuration carries */
+    public function getCurrentEnvelopePrefix(): string
+    {
+        return static::ENCRYPTION_MARKER . static::GLUE
+            . static::CURRENT_FORMAT_VERSION . static::GLUE
+            . $this->currentSaltVersion . static::GLUE;
     }
 
     public function encrypt(string $data): string

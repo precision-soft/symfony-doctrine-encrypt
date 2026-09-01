@@ -13,6 +13,7 @@ use PrecisionSoft\Doctrine\Encrypt\Encryptor\AbstractEncryptor;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256Encryptor;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256FixedEncryptor;
 use PrecisionSoft\Doctrine\Encrypt\Exception\Exception;
+use PrecisionSoft\Doctrine\Encrypt\Test\Utility\LegacyCiphertext;
 
 /**
  * @internal
@@ -81,7 +82,7 @@ final class RotationTest extends TestCase
 
     public function testLegacyFourPartPayloadUsesExplicitLegacySaltVersionNotCurrent(): void
     {
-        $legacyCiphertext = self::produceLegacyCiphertext(self::SALT_V1, 'legacy-secret');
+        $legacyCiphertext = LegacyCiphertext::produce(self::SALT_V1, 'legacy-secret');
 
         $rotatedEncryptor = new Aes256Encryptor(
             [
@@ -97,7 +98,7 @@ final class RotationTest extends TestCase
 
     public function testLegacyPayloadFailsMacWhenLegacySaltVersionPointsToWrongKey(): void
     {
-        $legacyCiphertext = self::produceLegacyCiphertext(self::SALT_V1, 'legacy-secret');
+        $legacyCiphertext = LegacyCiphertext::produce(self::SALT_V1, 'legacy-secret');
 
         $wrongEncryptor = new Aes256Encryptor(
             [
@@ -116,7 +117,7 @@ final class RotationTest extends TestCase
 
     public function testLegacySaltVersionDefaultsToFirstConfiguredVersion(): void
     {
-        $legacyCiphertext = self::produceLegacyCiphertext(self::SALT_V1, 'legacy-secret-default');
+        $legacyCiphertext = LegacyCiphertext::produce(self::SALT_V1, 'legacy-secret-default');
 
         $rotatedWithoutLegacyArg = new Aes256Encryptor(
             [
@@ -257,26 +258,51 @@ final class RotationTest extends TestCase
         static::assertSame('ok', $encryptor->decrypt($encryptor->encrypt('ok')));
     }
 
-    private static function produceLegacyCiphertext(string $salt, string $plaintext): string
+    public function testGetCurrentSaltVersionReturnsTheVersionNewWritesUse(): void
     {
-        $algorithm = 'AES-256-CTR';
-        $encryptionKey = \hash_hkdf('sha256', $salt, 32, 'encryption');
-        $macKey = \hash_hkdf('sha256', $salt, 32, 'authentication');
-        $nonce = \random_bytes(16);
-
-        $ciphertext = \openssl_encrypt($plaintext, $algorithm, $encryptionKey, \OPENSSL_RAW_DATA, $nonce);
-        static::assertIsString($ciphertext);
-
-        $mac = \hash_hmac('sha256', $algorithm . $ciphertext . $nonce, $macKey, true);
-
-        return \implode(
-            "\0",
+        $encryptor = new Aes256Encryptor(
             [
-                AbstractEncryptor::ENCRYPTION_MARKER,
-                \base64_encode($ciphertext),
-                \base64_encode($mac),
-                \base64_encode($nonce),
+                'v1' => self::SALT_V1,
+                'v2' => self::SALT_V2,
             ],
+            'v2',
+        );
+
+        $parts = \explode(AbstractEncryptor::GLUE, $encryptor->encrypt('rotation-secret'));
+
+        static::assertSame('v2', $encryptor->getCurrentSaltVersion());
+        static::assertSame($encryptor->getCurrentSaltVersion(), $parts[2]);
+    }
+
+    public function testGetCurrentEnvelopePrefixIsExactlyWhatEncryptWrites(): void
+    {
+        $encryptor = new Aes256Encryptor(
+            [
+                'v1' => self::SALT_V1,
+                'v2' => self::SALT_V2,
+            ],
+            'v2',
+        );
+
+        $parts = \explode(AbstractEncryptor::GLUE, $encryptor->encrypt('rotation-secret'));
+
+        static::assertSame(
+            $parts[0] . AbstractEncryptor::GLUE . $parts[1] . AbstractEncryptor::GLUE . $parts[2] . AbstractEncryptor::GLUE,
+            $encryptor->getCurrentEnvelopePrefix(),
+        );
+    }
+
+    public function testSaltVersionsDifferingOnlyByLetterCaseAreRejected(): void
+    {
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('salt versions must not differ only by letter case');
+
+        new Aes256Encryptor(
+            [
+                'v2' => self::SALT_V1,
+                'V2' => self::SALT_V2,
+            ],
+            'v2',
         );
     }
 }
