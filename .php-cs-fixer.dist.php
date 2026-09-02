@@ -10,6 +10,10 @@ $finder = PhpCsFixer\Finder::create()
     ->in(__DIR__)
     ->exclude(['var', 'node_modules', 'vendor']);
 
+if (true === \is_dir(__DIR__ . '/.example')) {
+    $finder->in(__DIR__ . '/.example');
+}
+
 return (new PhpCsFixer\Config())->setRules(
     [
         '@PER-CS2.0' => true,

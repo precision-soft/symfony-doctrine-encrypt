@@ -132,6 +132,47 @@ jobs:
             -   name: integration suite
                 run: composer test-integration -- --fail-on-skipped
 
+    # the example application under .example/ installs this package from the working tree through a path
+    # repository, so it is the one lane that drives the code the way a consumer does; a repository whose
+    # .example/ carries no composer.json yet prints a notice and passes
+    example:
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        steps:
+            -   uses: actions/checkout@v7
+            -   name: look for the example application
+                id: example
+                run: |
+                    if [ -f .example/composer.json ]; then
+                        echo "present=true" >> "${GITHUB_OUTPUT}"
+                    else
+                        echo "present=false" >> "${GITHUB_OUTPUT}"
+                        echo "::notice::no .example/composer.json in this repository, nothing to run"
+                    fi
+            -   if: steps.example.outputs.present == 'true'
+                uses: shivammathur/setup-php@v2
+                with:
+                    php-version: '8.4'
+                    coverage: none
+            -   name: resolve the composer cache directory
+                if: steps.example.outputs.present == 'true'
+                id: composer-cache
+                run: echo "path=$(composer config --global cache-files-dir)" >> "${GITHUB_OUTPUT}"
+            -   if: steps.example.outputs.present == 'true'
+                uses: actions/cache@v6
+                with:
+                    path: ${{ steps.composer-cache.outputs.path }}
+                    key: composer-8.4-example-${{ hashFiles('.example/composer.json') }}
+                    restore-keys: composer-8.4-example-
+            -   name: install the example's dependencies
+                if: steps.example.outputs.present == 'true'
+                working-directory: .example
+                run: composer install --no-progress --no-interaction --prefer-dist
+            -   name: check the example
+                if: steps.example.outputs.present == 'true'
+                working-directory: .example
+                run: composer check
+
     # every other lane installs composer.lock so the analysers certify one reproducible dependency set;
     # this one resolves the upper bound instead, on the only interpreter Symfony 8 will install on
     latest-deps:
