@@ -17,7 +17,6 @@ fi
 if [[ -f "vendor/autoload.php" ]] && [[ -f "${LOCK_HASH_FILE}" ]] && [[ "${LOCK_HASH}" == "$(cat "${LOCK_HASH_FILE}")" ]]; then
     echo "vendor up to date, skipping composer install"
 else
-    # no `|| echo warning`: a swallowed failure boots a vendor-less container, reports success and never writes the lock hash
     scomposer install
 
     if [[ -n "${LOCK_HASH}" ]] && [[ -f "vendor/autoload.php" ]]; then
@@ -25,6 +24,4 @@ else
     fi
 fi
 
-# `exec` so tini ( compose `init: true` ) owns sleep directly: with bash as PID 1 the kernel discards
-# a default-action SIGTERM and `docker compose stop` SIGKILLs instead
 exec sleep infinity

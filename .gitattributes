@@ -181,3 +181,19 @@ Procfile          text
 
 # ignore files (like .npmignore or .gitignore)
 *.*ignore         text
+
+# export-ignore (excluded from composer installs)
+/.dev/                   export-ignore
+/.example/               export-ignore
+/.gitattributes          export-ignore
+/.github/                export-ignore
+/.gitignore              export-ignore
+/.php-cs-fixer.cache     export-ignore
+/.php-cs-fixer.dist.php  export-ignore
+/dc                      export-ignore
+/dcl                     export-ignore
+/dcsh                    export-ignore
+/infection.json5         export-ignore
+/phpstan.neon            export-ignore
+/phpunit.xml.dist        export-ignore
+/tests/                  export-ignore
