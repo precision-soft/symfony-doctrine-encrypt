@@ -138,6 +138,32 @@ jobs:
     example:
         runs-on: ubuntu-latest
         timeout-minutes: 20
+        services:
+            mysql:
+                image: mysql:8.4
+                env:
+                    MYSQL_ROOT_PASSWORD: root
+                    MYSQL_DATABASE: test
+                ports: [ '3306:3306' ]
+                options: >-
+                    --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+                    --health-interval=5s
+                    --health-timeout=5s
+                    --health-retries=20
+            mariadb:
+                image: mariadb:11.8
+                env:
+                    MARIADB_ROOT_PASSWORD: root
+                    MARIADB_DATABASE: test
+                ports: [ '3307:3306' ]
+                options: >-
+                    --health-cmd="healthcheck.sh --connect --innodb_initialized"
+                    --health-interval=5s
+                    --health-timeout=5s
+                    --health-retries=20
+        env:
+            DATABASE_URL_MYSQL: mysql://root:root@127.0.0.1:3306/test?serverVersion=8.4.0
+            DATABASE_URL_MARIADB: mysql://root:root@127.0.0.1:3307/test?serverVersion=11.8.0-MariaDB
         steps:
             -   uses: actions/checkout@v7
             -   name: look for the example application
@@ -153,6 +179,7 @@ jobs:
                 uses: shivammathur/setup-php@v2
                 with:
                     php-version: '8.4'
+                    extensions: openssl, pdo_mysql
                     coverage: none
             -   name: resolve the composer cache directory
                 if: steps.example.outputs.present == 'true'

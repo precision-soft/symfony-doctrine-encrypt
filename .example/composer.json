@@ -1,0 +1,55 @@
+{
+    "name": "precision-soft/symfony-doctrine-encrypt-example",
+    "description": "The customer directory of a shop - users whose e-mail, phone and address live encrypted in the database, looked up by their deterministic e-mail, rotated to a new salt online and walked by the encrypt, decrypt and rotate commands with checkpoints - whose test suite exercises every public capability of precision-soft/symfony-doctrine-encrypt on the real engines",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": ">=8.2",
+        "doctrine/doctrine-bundle": "^2.13",
+        "doctrine/orm": "^3.0",
+        "precision-soft/symfony-doctrine-encrypt": "*@dev",
+        "symfony/console": "^7.0 || ^8.0",
+        "symfony/framework-bundle": "^7.0 || ^8.0"
+    },
+    "require-dev": {
+        "phpstan/phpstan": "^2.0",
+        "phpunit/phpunit": "^11.5",
+        "symfony/phpunit-bridge": "^7.0 || ^8.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "PrecisionSoft\\Doctrine\\Encrypt\\Example\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "PrecisionSoft\\Dev\\PhpStan\\": "../.dev/phpstan/",
+            "PrecisionSoft\\Doctrine\\Encrypt\\Example\\Test\\": "tests/"
+        }
+    },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../",
+            "options": {
+                "symlink": true
+            }
+        }
+    ],
+    "scripts": {
+        "test": "simple-phpunit --fail-on-skipped",
+        "phpstan": "phpstan analyse --memory-limit=512M",
+        "check": [
+            "@phpstan",
+            "@test"
+        ]
+    },
+    "config": {
+        "platform": {
+            "php": "8.2"
+        },
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
