@@ -33,14 +33,6 @@ final class PrecisionSoftDoctrineEncryptBundleTest extends AbstractTestCase
         return new MockDto(PrecisionSoftDoctrineEncryptBundle::class);
     }
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->removeTypeIfExists('encryptedAes256_bundle_test');
-        $this->removeTypeIfExists('encryptedAes256fixed_bundle_test');
-    }
-
     public function testBootRegistersTypesAndSetsEncryptors(): void
     {
         $salt = \str_repeat('s', 32);
@@ -153,10 +145,18 @@ final class PrecisionSoftDoctrineEncryptBundleTest extends AbstractTestCase
         $this->expectNotToPerformAssertions();
     }
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->removeTypeIfExists('encryptedAes256_bundle_test');
+        $this->removeTypeIfExists('encryptedAes256fixed_bundle_test');
+    }
+
     private function removeTypeIfExists(string $typeName): void
     {
         /* the Doctrine type registry has no removal API, so overriding is the only way to unset a type */
-        if (Type::hasType($typeName)) {
+        if (true === Type::hasType($typeName)) {
             Type::overrideType($typeName, Type::getType($typeName)::class);
         }
     }

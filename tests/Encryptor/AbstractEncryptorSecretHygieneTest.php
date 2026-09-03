@@ -37,6 +37,29 @@ final class AbstractEncryptorSecretHygieneTest extends TestCase
         ];
     }
 
+    /** @return iterable<string, array{array<string, string>|string, string, string|null}> */
+    public static function dataProviderConstructorRejection(): iterable
+    {
+        yield 'empty salts map' => [[], 'default', null];
+        yield 'current version absent' => [['v1' => self::SALT], 'nope', null];
+        yield 'salt below minimum length' => [['v1' => \str_repeat('x', 31)], 'v1', null];
+        yield 'invalid version identifier' => [['bad version!' => self::SALT], 'bad version!', null];
+        yield 'legacy version absent' => [['v1' => self::SALT], 'v1', 'nope'];
+    }
+
+    private static function getLongestNullFreeRun(string $value): string
+    {
+        $longestRun = '';
+
+        foreach (\explode("\0", $value) as $run) {
+            if (\strlen($run) > \strlen($longestRun)) {
+                $longestRun = $run;
+            }
+        }
+
+        return $longestRun;
+    }
+
     /**
      * @param callable(Aes256Encryptor): string $dumpPath
      *
@@ -85,16 +108,6 @@ final class AbstractEncryptorSecretHygieneTest extends TestCase
             self::getLongestNullFreeRun(\hash_hkdf('sha256', self::SALT, 32, 'encryption')),
             $exported,
         );
-    }
-
-    /** @return iterable<string, array{array<string, string>|string, string, string|null}> */
-    public static function dataProviderConstructorRejection(): iterable
-    {
-        yield 'empty salts map' => [[], 'default', null];
-        yield 'current version absent' => [['v1' => self::SALT], 'nope', null];
-        yield 'salt below minimum length' => [['v1' => \str_repeat('x', 31)], 'v1', null];
-        yield 'invalid version identifier' => [['bad version!' => self::SALT], 'bad version!', null];
-        yield 'legacy version absent' => [['v1' => self::SALT], 'v1', 'nope'];
     }
 
     /**
@@ -152,19 +165,6 @@ final class AbstractEncryptorSecretHygieneTest extends TestCase
             ],
             $aes256Encryptor->__debugInfo(),
         );
-    }
-
-    private static function getLongestNullFreeRun(string $value): string
-    {
-        $longestRun = '';
-
-        foreach (\explode("\0", $value) as $run) {
-            if (\strlen($run) > \strlen($longestRun)) {
-                $longestRun = $run;
-            }
-        }
-
-        return $longestRun;
     }
 
     private function assertContainsNoSecret(string $haystack): void

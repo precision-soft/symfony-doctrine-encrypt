@@ -133,7 +133,7 @@ class EntityService
 
         if (false === ($encryptor instanceof AbstractEncryptor)) {
             throw new Exception(\sprintf(
-                'encryptor %s must extend AbstractEncryptor to support multi-salt rotation lookups',
+                'encryptor `%s` must extend `AbstractEncryptor` to support multi-salt rotation lookups',
                 $encryptor::class,
             ));
         }
@@ -145,27 +145,6 @@ class EntityService
         }
 
         return $candidates;
-    }
-
-    protected function getDeterministicEncryptor(
-        string $class,
-        string $field,
-        ?string $managerName = null,
-    ): DeterministicEncryptorInterface {
-        $encryptor = $this->getEncryptor($class, $field, $managerName);
-
-        if (false === ($encryptor instanceof DeterministicEncryptorInterface)) {
-            throw new NonDeterministicEncryptorException(
-                \sprintf(
-                    'field %s::%s uses a non-deterministic encryptor (%s); deterministic lookups require a DeterministicEncryptorInterface implementation',
-                    $class,
-                    $field,
-                    $encryptor::class,
-                ),
-            );
-        }
-
-        return $encryptor;
     }
 
     public function hasEncryptedValue(
@@ -229,6 +208,27 @@ class EntityService
         }
 
         return $entitiesWithEncryption;
+    }
+
+    protected function getDeterministicEncryptor(
+        string $class,
+        string $field,
+        ?string $managerName = null,
+    ): DeterministicEncryptorInterface {
+        $encryptor = $this->getEncryptor($class, $field, $managerName);
+
+        if (false === ($encryptor instanceof DeterministicEncryptorInterface)) {
+            throw new NonDeterministicEncryptorException(
+                \sprintf(
+                    'field `%s::%s` uses a non-deterministic encryptor (`%s`); deterministic lookups require a `DeterministicEncryptorInterface` implementation',
+                    $class,
+                    $field,
+                    $encryptor::class,
+                ),
+            );
+        }
+
+        return $encryptor;
     }
 
     /**

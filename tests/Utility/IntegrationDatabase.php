@@ -16,14 +16,18 @@ use Doctrine\DBAL\Types\Type;
 use Doctrine\ORM\Configuration;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\Mapping\Driver\AttributeDriver;
 use Doctrine\ORM\Tools\SchemaTool;
 use PrecisionSoft\Doctrine\Encrypt\Contract\EncryptorInterface;
+use PrecisionSoft\Doctrine\Encrypt\Test\Utility\Entity\BigintEncryptedSubject;
+use PrecisionSoft\Doctrine\Encrypt\Test\Utility\Entity\EncryptedChild;
+use PrecisionSoft\Doctrine\Encrypt\Test\Utility\Entity\EncryptedParent;
 use PrecisionSoft\Doctrine\Encrypt\Test\Utility\Entity\EncryptedSubject;
+use PrecisionSoft\Doctrine\Encrypt\Test\Utility\Exception\FixtureException;
 use PrecisionSoft\Doctrine\Encrypt\Type\AbstractType;
 use PrecisionSoft\Doctrine\Encrypt\Type\Aes256FixedType;
 use PrecisionSoft\Doctrine\Encrypt\Type\Aes256Type;
-use RuntimeException;
 
 /**
  * `DATABASE_URL_*` is exported whether or not the `db` profile runs, so a test must attempt the connection and skip on the exception rather than branch on the variable.
@@ -34,6 +38,9 @@ final class IntegrationDatabase
 {
     public const SALT_V1 = 'integration-salt-v1-abcdefghijklmn';
     public const SALT_V2 = 'integration-salt-v2-opqrstuvwxyz01';
+
+    /** @var list<class-string> */
+    public const ENTITY_CLASSES = [EncryptedSubject::class, BigintEncryptedSubject::class, EncryptedParent::class, EncryptedChild::class];
 
     /** @return iterable<string, array{string}> */
     public static function dataProviderEngine(): iterable
@@ -90,7 +97,7 @@ final class IntegrationDatabase
     public static function registerTypes(EncryptorInterface $randomEncryptor, EncryptorInterface $deterministicEncryptor): void
     {
         if ('encryptedAes256' !== Aes256Type::getFullName() || 'encryptedAes256fixed' !== Aes256FixedType::getFullName()) {
-            throw new RuntimeException('the encrypted type names drifted from the fixture mapping');
+            throw new FixtureException('the encrypted type names drifted from the fixture mapping');
         }
 
         foreach ([Aes256Type::class => $randomEncryptor, Aes256FixedType::class => $deterministicEncryptor] as $typeClass => $encryptor) {
@@ -104,7 +111,7 @@ final class IntegrationDatabase
             $type = Type::getType($typeName);
 
             if (false === ($type instanceof AbstractType)) {
-                throw new RuntimeException(\sprintf('`%s` is not an encrypted type', $typeName));
+                throw new FixtureException(\sprintf('`%s` is not an encrypted type', $typeName));
             }
 
             $type->setEncryptor($encryptor);
@@ -114,7 +121,7 @@ final class IntegrationDatabase
     public static function createSchema(EntityManagerInterface $entityManager): void
     {
         $schemaTool = new SchemaTool($entityManager);
-        $classMetadata = [$entityManager->getClassMetadata(EncryptedSubject::class)];
+        $classMetadata = static::getClassMetadata($entityManager);
 
         $schemaTool->dropSchema($classMetadata);
         $schemaTool->createSchema($classMetadata);
@@ -122,6 +129,15 @@ final class IntegrationDatabase
 
     public static function dropSchema(EntityManagerInterface $entityManager): void
     {
-        (new SchemaTool($entityManager))->dropSchema([$entityManager->getClassMetadata(EncryptedSubject::class)]);
+        (new SchemaTool($entityManager))->dropSchema(static::getClassMetadata($entityManager));
+    }
+
+    /** @return list<ClassMetadata<object>> */
+    private static function getClassMetadata(EntityManagerInterface $entityManager): array
+    {
+        return \array_map(
+            static fn(string $className): ClassMetadata => $entityManager->getClassMetadata($className),
+            static::ENTITY_CLASSES,
+        );
     }
 }

@@ -30,21 +30,6 @@ final class Aes256FixedTypeTest extends AbstractTestCase
         return new MockDto(Aes256FixedType::class);
     }
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        if (false === Type::hasType(Aes256FixedType::getFullName())) {
-            Type::addType(Aes256FixedType::getFullName(), Aes256FixedType::class);
-        }
-
-        /** @var Aes256FixedType $aes256FixedType */
-        $aes256FixedType = Type::getType(Aes256FixedType::getFullName());
-        $this->aes256FixedType = $aes256FixedType;
-        $this->aes256FixedEncryptor = new Aes256FixedEncryptor(\str_repeat('c', 32));
-        $this->aes256FixedType->setEncryptor($this->aes256FixedEncryptor);
-    }
-
     public function testConvertToDatabaseValueEncryptsValue(): void
     {
         /** @var AbstractPlatform $platform */
@@ -121,5 +106,20 @@ final class Aes256FixedTypeTest extends AbstractTestCase
         $second = $this->aes256FixedType->convertToDatabaseValue('same-value', $platform);
 
         static::assertSame($first, $second);
+    }
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        if (false === Type::hasType(Aes256FixedType::getFullName())) {
+            Type::addType(Aes256FixedType::getFullName(), Aes256FixedType::class);
+        }
+
+        /** @var Aes256FixedType $aes256FixedType */
+        $aes256FixedType = Type::getType(Aes256FixedType::getFullName());
+        $this->aes256FixedType = $aes256FixedType;
+        $this->aes256FixedEncryptor = new Aes256FixedEncryptor(\str_repeat('c', 32));
+        $this->aes256FixedType->setEncryptor($this->aes256FixedEncryptor);
     }
 }

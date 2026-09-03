@@ -33,7 +33,7 @@ class DatabaseRotateCommand extends AbstractDatabaseCommand
     {
         parent::configure();
 
-        $this->addOption(static::OPTION_VERIFY, null, InputOption::VALUE_NONE, 'fail unless every selected value is stored under the current salt version');
+        $this->addOption(static::OPTION_VERIFY, null, InputOption::VALUE_NONE, 'read the stored columns of the selected entities back and fail unless every value carries the current salt version; with `--dry-run` nothing is written and the check still runs');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -54,7 +54,7 @@ class DatabaseRotateCommand extends AbstractDatabaseCommand
     /**
      * @param EntityMetadataDto[] $entitiesWithEncryption
      *
-     * @throws Exception if any selected value is still stored under another salt version
+     * @throws Exception if any stored value of the selected entities is still under another salt version
      */
     protected function verifyCurrentSalt(array $entitiesWithEncryption): void
     {
@@ -68,7 +68,7 @@ class DatabaseRotateCommand extends AbstractDatabaseCommand
             $classMetadata = $entityMetadataDto->getClassMetadata();
 
             if (false === ($classMetadata instanceof OrmClassMetadata)) {
-                throw new Exception(\sprintf('expected an orm ClassMetadata, got `%s`', $classMetadata::class));
+                throw new Exception(\sprintf('expected an orm `ClassMetadata`, got `%s`', $classMetadata::class));
             }
 
             foreach ($entityMetadataDto->getEncryptionFields() as $fieldName => $typeName) {
@@ -103,22 +103,53 @@ class DatabaseRotateCommand extends AbstractDatabaseCommand
     ): int {
         $quotedColumn = $platform->quoteIdentifier($classMetadata->getColumnName($fieldName));
 
-        $count = $connection->fetchOne(
-            \sprintf(
-                'SELECT COUNT(*) FROM %s WHERE %s IS NOT NULL AND %s NOT LIKE ? ESCAPE %s',
-                $platform->quoteIdentifier($this->getTableNameForField($classMetadata, $fieldName)),
-                $quotedColumn,
-                $quotedColumn,
-                $platform->quoteStringLiteral(static::LIKE_ESCAPE_CHARACTER),
-            ),
-            [$this->escapeLikePattern($encryptor->getCurrentEnvelopePrefix()) . '%'],
+        $sql = \sprintf(
+            'SELECT COUNT(*) FROM %s WHERE %s IS NOT NULL AND %s NOT LIKE ? ESCAPE %s',
+            $platform->quoteIdentifier($this->getTableNameForField($classMetadata, $fieldName)),
+            $quotedColumn,
+            $quotedColumn,
+            $platform->quoteStringLiteral(static::LIKE_ESCAPE_CHARACTER),
         );
+        $parameters = [$this->escapeLikePattern($encryptor->getCurrentEnvelopePrefix()) . '%'];
+
+        /* under SINGLE_TABLE the siblings share the column but were never loaded, so only the rows the walk could see are counted */
+        if (true === $classMetadata->isInheritanceTypeSingleTable() && null !== $classMetadata->discriminatorColumn) {
+            $discriminatorValues = $this->getDiscriminatorValues($classMetadata);
+
+            $sql .= \sprintf(
+                ' AND %s IN (%s)',
+                $platform->quoteIdentifier($classMetadata->discriminatorColumn->name),
+                \implode(', ', \array_fill(0, \count($discriminatorValues), '?')),
+            );
+            $parameters = [...$parameters, ...$discriminatorValues];
+        }
+
+        $count = $connection->fetchOne($sql, $parameters);
 
         if (false === \is_numeric($count)) {
             throw new Exception('verification count query returned non-numeric result');
         }
 
         return (int)$count;
+    }
+
+    /**
+     * @phpstan-param OrmClassMetadata<object> $classMetadata
+     * @return list<string> the discriminator values of the class and of every subclass, which is what `SELECT e FROM Class` loads
+     */
+    protected function getDiscriminatorValues(OrmClassMetadata $classMetadata): array
+    {
+        $classNames = [$classMetadata->name, ...$classMetadata->subClasses];
+
+        return \array_map(
+            'strval',
+            \array_keys(
+                \array_filter(
+                    $classMetadata->discriminatorMap,
+                    static fn(string $className): bool => \in_array($className, $classNames, true),
+                ),
+            ),
+        );
     }
 
     /** @phpstan-param OrmClassMetadata<object> $classMetadata */

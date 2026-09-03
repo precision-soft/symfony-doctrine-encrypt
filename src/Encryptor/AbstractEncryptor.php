@@ -11,6 +11,7 @@ namespace PrecisionSoft\Doctrine\Encrypt\Encryptor;
 use PrecisionSoft\Doctrine\Encrypt\Contract\EncryptorInterface;
 use PrecisionSoft\Doctrine\Encrypt\Exception\Exception;
 use PrecisionSoft\Doctrine\Encrypt\Type\AbstractType;
+use SensitiveParameter;
 
 abstract class AbstractEncryptor implements EncryptorInterface
 {
@@ -46,7 +47,7 @@ abstract class AbstractEncryptor implements EncryptorInterface
      * @param string|null $legacySaltVersion defaults to the first key of `$saltsByVersion` so rotation never silently retargets legacy rows to the new current key
      */
     public function __construct(
-        #[\SensitiveParameter]
+        #[SensitiveParameter]
         array|string $saltsByVersion,
         string $currentSaltVersion = self::DEFAULT_SALT_VERSION,
         ?string $legacySaltVersion = null,
