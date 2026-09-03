@@ -28,6 +28,9 @@
         <testsuite name="Project Test Suite">
             <directory>tests</directory>
         </testsuite>
+        <testsuite name="Dev Tooling Suite">
+            <directory>.dev/phpstan/Test</directory>
+        </testsuite>
     </testsuites>
 
     <extensions>

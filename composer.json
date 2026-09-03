@@ -39,6 +39,7 @@
     },
     "autoload-dev": {
         "psr-4": {
+            "PrecisionSoft\\Dev\\PhpStan\\": ".dev/phpstan/",
             "PrecisionSoft\\Doctrine\\Encrypt\\Test\\": "tests/"
         }
     },

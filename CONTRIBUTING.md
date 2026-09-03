@@ -57,7 +57,7 @@ The dev image ([`.dev/docker/Dockerfile`](./.dev/docker/Dockerfile)) pins the tw
 
 The `db` profile is started only on request (`./dc --profile db up -d`). `DATABASE_URL_MYSQL` and `DATABASE_URL_MARIADB` are set on the `dev` service whether or not it is up, so a test connects and skips rather than branching on configuration. The database services publish no ports and store on `tmpfs`, so their credentials reach nothing and no state survives a restart.
 
-Mutation thresholds live in [`infection.json5`](./infection.json5) (`minMsi`, `minCoveredMsi`, both at 81). They are the measured baseline rounded down: raise them when the score improves, and never lower one to make a run pass.
+Mutation thresholds live in [`infection.json5`](./infection.json5) (`minMsi`, `minCoveredMsi`, both at 95). They are the measured baseline rounded down: raise them when the score improves, and never lower one to make a run pass.
 
 ### Continuous integration
 
@@ -80,6 +80,9 @@ Before opening a pull request:
 
 The repository enforces a strict, opinionated style on top of
 [PER-CS 2.0](https://www.php-fig.org/per/coding-style/). `php-cs-fixer` and `phpstan` (level 8) are the automated enforcers; the rules below are normative and contributions are expected to follow them.
+
+`php-cs-fixer` enforces the formatting layer; `phpstan` (level 8) enforces the type layer and, through the house rules in [`.dev/phpstan/rules.neon`](./.dev/phpstan/rules.neon), the conventions below that formatting cannot express: no `!` negation, yoda equality, explicit boolean conditions (no bare values, no `?:`), imported class names instead of inline `\Fqn`, project-specific exceptions only, `static::` over `self::` where late static binding is legal, no `final` classes or methods and no `private` methods under `src/`, no public `isXyz()` accessors, lowercase exception and log messages, the class member order below, no abbreviated or numbered variable names, uppercase SQL keywords in string literals, and no `TODO`/`FIXME` markers. These run inside `composer phpstan`, so they gate the pre-commit hook and CI alike; there is no baseline and no suppression, a violation is fixed in the code. The rules are unit-tested under [`.dev/phpstan/Test/`](./.dev/phpstan/Test) and run with
+`composer test` (the *Dev Tooling Suite*). The member order knows no exceptions: static members before instance members and `public` → `protected` → `private` inside each group, for properties and methods alike, after the abstract methods, the constructor and the magic methods — so in a test class `getMockDto()` sits with the public static methods and `setUp()`/`tearDown()` sit with the protected methods, below the tests. PHPStan's result cache does not hash the rule classes, so run `vendor/bin/phpstan clear-result-cache` after editing a rule.
 
 ### Naming
 

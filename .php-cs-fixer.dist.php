@@ -8,7 +8,11 @@ $header = 'Copyright (c) Precision Soft';
 
 $finder = PhpCsFixer\Finder::create()
     ->in(__DIR__)
-    ->exclude(['var', 'node_modules', 'vendor']);
+    ->exclude(['var', 'node_modules', 'vendor', 'Test/Fixture']);
+
+if (true === \is_dir(__DIR__ . '/.dev/phpstan')) {
+    $finder->in(__DIR__ . '/.dev/phpstan');
+}
 
 if (true === \is_dir(__DIR__ . '/.example')) {
     $finder->in(__DIR__ . '/.example');
