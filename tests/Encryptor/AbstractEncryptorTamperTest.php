@@ -47,6 +47,31 @@ final class AbstractEncryptorTamperTest extends TestCase
         }
     }
 
+    /** @return iterable<string, array{string}> */
+    public static function dataProviderForgedFormatVersion(): iterable
+    {
+        yield 'future version' => ['v2'];
+        yield 'empty version' => [''];
+        yield 'legacy-looking version' => ['v0'];
+    }
+
+    /* dropping only part of the padding leaves a length strict base64 rejects, so the equivalence holds for full removal alone */
+    private static function hasDecodableTail(string $payload): bool
+    {
+        $lastGlue = \strrpos($payload, AbstractEncryptor::GLUE);
+
+        if (false === $lastGlue) {
+            return false;
+        }
+
+        return false !== \base64_decode(\substr($payload, $lastGlue + 1), true);
+    }
+
+    private static function buildPayload(): string
+    {
+        return (new Aes256FixedEncryptor(self::SALT))->encrypt(self::PLAINTEXT);
+    }
+
     #[DataProvider('dataProviderBitFlipOffset')]
     public function testSingleBitFlipNeverYieldsThePlaintext(int $offset): void
     {
@@ -151,14 +176,6 @@ final class AbstractEncryptorTamperTest extends TestCase
         $aes256Encryptor->decrypt(\implode(AbstractEncryptor::GLUE, $parts));
     }
 
-    /** @return iterable<string, array{string}> */
-    public static function dataProviderForgedFormatVersion(): iterable
-    {
-        yield 'future version' => ['v2'];
-        yield 'empty version' => [''];
-        yield 'legacy-looking version' => ['v0'];
-    }
-
     #[DataProvider('dataProviderForgedFormatVersion')]
     public function testForgedFormatVersionIsRejected(string $formatVersion): void
     {
@@ -203,22 +220,5 @@ final class AbstractEncryptorTamperTest extends TestCase
         }
 
         static::assertNotSame(self::PLAINTEXT, $decrypted);
-    }
-
-    /* dropping only part of the padding leaves a length strict base64 rejects, so the equivalence holds for full removal alone */
-    private static function hasDecodableTail(string $payload): bool
-    {
-        $lastGlue = \strrpos($payload, AbstractEncryptor::GLUE);
-
-        if (false === $lastGlue) {
-            return false;
-        }
-
-        return false !== \base64_decode(\substr($payload, $lastGlue + 1), true);
-    }
-
-    private static function buildPayload(): string
-    {
-        return (new Aes256FixedEncryptor(self::SALT))->encrypt(self::PLAINTEXT);
     }
 }

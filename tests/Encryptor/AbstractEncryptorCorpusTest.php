@@ -54,6 +54,17 @@ final class AbstractEncryptorCorpusTest extends TestCase
         yield 'every byte value' => [self::buildEveryByteValue()];
     }
 
+    private static function buildEveryByteValue(): string
+    {
+        $value = '';
+
+        for ($byte = 0; $byte < 256; ++$byte) {
+            $value .= \chr($byte);
+        }
+
+        return $value;
+    }
+
     #[DataProvider('dataProviderSingleByteValue')]
     #[DataProvider('dataProviderBoundaryLength')]
     #[DataProvider('dataProviderAdversarialValue')]
@@ -104,16 +115,5 @@ final class AbstractEncryptorCorpusTest extends TestCase
         $secondParts = \explode(AbstractEncryptor::GLUE, $aes256FixedEncryptor->encrypt(\str_repeat('A', 17)));
 
         static::assertNotSame($firstParts[5], $secondParts[5]);
-    }
-
-    private static function buildEveryByteValue(): string
-    {
-        $value = '';
-
-        for ($byte = 0; $byte < 256; ++$byte) {
-            $value .= \chr($byte);
-        }
-
-        return $value;
     }
 }

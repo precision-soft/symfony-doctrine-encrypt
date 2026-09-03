@@ -1,4 +1,4 @@
-ARG PHP_VERSION=8.2
+ARG PHP_VERSION=8.4
 
 FROM php:${PHP_VERSION}-cli-alpine
 
@@ -32,8 +32,10 @@ RUN apk add --no-cache --virtual .build-deps ${PHPIZE_DEPS} \
     && apk del .build-deps \
     && rm -rf /tmp/*
 
-ARG INFECTION_VERSION=0.31.9
-RUN curl -fsSL -o /usr/local/bin/infection \
+ARG INFECTION_VERSION=0.35.3
+ARG INFECTION_VERSION_PHP_8_2=0.31.9
+RUN if [ "$(php -r 'echo PHP_VERSION_ID < 80300 ? 1 : 0;')" = 1 ]; then INFECTION_VERSION="${INFECTION_VERSION_PHP_8_2}"; fi \
+    && curl -fsSL -o /usr/local/bin/infection \
         "https://github.com/infection/infection/releases/download/${INFECTION_VERSION}/infection.phar" \
     && chmod +x /usr/local/bin/infection \
     && infection --version \

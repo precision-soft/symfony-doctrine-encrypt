@@ -21,6 +21,48 @@ final class AbstractEncryptorCryptoTest extends TestCase
 {
     private const SALT = 'abcdefghijklmnopqrstuvwxyz123456';
 
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function dataProviderRoundTripValues(): array
+    {
+        return [
+            'empty string' => [''],
+            'single character' => ['x'],
+            'unicode' => ["\xC3\xA9\xC3\xA0\xC3\xBC"],
+            'null bytes' => ["foo\0bar\0baz"],
+            'long string' => [\str_repeat('abcdefghij', 1000)],
+            'json payload' => ['{"key":"value","nested":{"a":1}}'],
+            'base64-like' => ['SGVsbG8gV29ybGQ='],
+            'encryption marker lookalike' => ['<ENC>not-actually-encrypted'],
+            'newlines and tabs' => ["line1\nline2\ttab"],
+            'binary-safe' => [\random_bytes(256)],
+        ];
+    }
+
+    private static function produceLegacyCiphertext(string $salt, string $plaintext): string
+    {
+        $algorithm = 'AES-256-CTR';
+        $encryptionKey = \hash_hkdf('sha256', $salt, 32, 'encryption');
+        $macKey = \hash_hkdf('sha256', $salt, 32, 'authentication');
+        $nonce = \random_bytes(16);
+
+        $ciphertext = \openssl_encrypt($plaintext, $algorithm, $encryptionKey, \OPENSSL_RAW_DATA, $nonce);
+        static::assertIsString($ciphertext);
+
+        $mac = \hash_hmac('sha256', $algorithm . $ciphertext . $nonce, $macKey, true);
+
+        return \implode(
+            "\0",
+            [
+                AbstractEncryptor::ENCRYPTION_MARKER,
+                \base64_encode($ciphertext),
+                \base64_encode($mac),
+                \base64_encode($nonce),
+            ],
+        );
+    }
+
     public function testDerivedKeysAreConsistentAcrossInstances(): void
     {
         $firstAes256Encryptor = new Aes256Encryptor(self::SALT);
@@ -308,7 +350,7 @@ final class AbstractEncryptorCryptoTest extends TestCase
 
         $nonces = [];
 
-        for ($i = 0; $i < 50; ++$i) {
+        for ($iteration = 0; $iteration < 50; ++$iteration) {
             $encrypted = $aes256Encryptor->encrypt($plaintext);
             $nonces[] = \explode("\0", $encrypted)[5];
         }
@@ -330,25 +372,6 @@ final class AbstractEncryptorCryptoTest extends TestCase
         $aes256FixedEncryptor = new Aes256FixedEncryptor(self::SALT);
 
         static::assertSame($value, $aes256FixedEncryptor->decrypt($aes256FixedEncryptor->encrypt($value)));
-    }
-
-    /**
-     * @return array<string, array{string}>
-     */
-    public static function dataProviderRoundTripValues(): array
-    {
-        return [
-            'empty string' => [''],
-            'single character' => ['x'],
-            'unicode' => ["\xC3\xA9\xC3\xA0\xC3\xBC"],
-            'null bytes' => ["foo\0bar\0baz"],
-            'long string' => [\str_repeat('abcdefghij', 1000)],
-            'json payload' => ['{"key":"value","nested":{"a":1}}'],
-            'base64-like' => ['SGVsbG8gV29ybGQ='],
-            'encryption marker lookalike' => ['<ENC>not-actually-encrypted'],
-            'newlines and tabs' => ["line1\nline2\ttab"],
-            'binary-safe' => [\random_bytes(256)],
-        ];
     }
 
     public function testSaltExactlyMinimumLengthIsAccepted(): void
@@ -537,28 +560,5 @@ final class AbstractEncryptorCryptoTest extends TestCase
         $decryptedByRandom = $aes256Encryptor->decrypt($encryptedByFixed);
 
         static::assertSame($plaintext, $decryptedByRandom);
-    }
-
-    private static function produceLegacyCiphertext(string $salt, string $plaintext): string
-    {
-        $algorithm = 'AES-256-CTR';
-        $encryptionKey = \hash_hkdf('sha256', $salt, 32, 'encryption');
-        $macKey = \hash_hkdf('sha256', $salt, 32, 'authentication');
-        $nonce = \random_bytes(16);
-
-        $ciphertext = \openssl_encrypt($plaintext, $algorithm, $encryptionKey, \OPENSSL_RAW_DATA, $nonce);
-        static::assertIsString($ciphertext);
-
-        $mac = \hash_hmac('sha256', $algorithm . $ciphertext . $nonce, $macKey, true);
-
-        return \implode(
-            "\0",
-            [
-                AbstractEncryptor::ENCRYPTION_MARKER,
-                \base64_encode($ciphertext),
-                \base64_encode($mac),
-                \base64_encode($nonce),
-            ],
-        );
     }
 }

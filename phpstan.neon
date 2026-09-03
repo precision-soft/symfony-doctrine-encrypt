@@ -1,4 +1,5 @@
 includes:
+    - .dev/phpstan/rules.neon
     - vendor/phpstan/phpstan-mockery/extension.neon
 
 parameters:

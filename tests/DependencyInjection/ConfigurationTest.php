@@ -21,12 +21,6 @@ final class ConfigurationTest extends TestCase
     private Processor $processor;
     private Configuration $configuration;
 
-    protected function setUp(): void
-    {
-        $this->processor = new Processor();
-        $this->configuration = new Configuration();
-    }
-
     public function testMinimalValidConfiguration(): void
     {
         $processedConfiguration = $this->processor->processConfiguration(
@@ -327,5 +321,11 @@ final class ConfigurationTest extends TestCase
 
         static::assertSame('2026.04', $processedConfiguration['current_salt_version']);
         static::assertSame('v1.0', $processedConfiguration['legacy_salt_version']);
+    }
+
+    protected function setUp(): void
+    {
+        $this->processor = new Processor();
+        $this->configuration = new Configuration();
     }
 }

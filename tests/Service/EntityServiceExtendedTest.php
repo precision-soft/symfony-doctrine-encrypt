@@ -35,20 +35,13 @@ use stdClass;
 /** @internal */
 final class EntityServiceExtendedTest extends AbstractTestCase
 {
-    public static function getMockDto(): MockDto
-    {
-        return new MockDto(stdClass::class);
-    }
-
     private string $salt;
     private Aes256Encryptor $aes256Encryptor;
     private Aes256FixedEncryptor $aes256FixedEncryptor;
 
-    protected function setUp(): void
+    public static function getMockDto(): MockDto
     {
-        $this->salt = \str_repeat('e', 32);
-        $this->aes256Encryptor = new Aes256Encryptor($this->salt);
-        $this->aes256FixedEncryptor = new Aes256FixedEncryptor($this->salt);
+        return new MockDto(stdClass::class);
     }
 
     public function testHasEncryptedValueReturnsTrueForEncryptedValue(): void
@@ -522,6 +515,13 @@ final class EntityServiceExtendedTest extends AbstractTestCase
         $entityService->hasEncryptor($className, $fieldName);
 
         static::assertSame(true, $entityService->hasEncryptor($className, $fieldName));
+    }
+
+    protected function setUp(): void
+    {
+        $this->salt = \str_repeat('e', 32);
+        $this->aes256Encryptor = new Aes256Encryptor($this->salt);
+        $this->aes256FixedEncryptor = new Aes256FixedEncryptor($this->salt);
     }
 
     /**

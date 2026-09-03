@@ -16,3 +16,7 @@
 .dev/docker/docker-compose.override.yml
 /.temp/
 /diff*.txt
+/AGENTS.md
+/.bak_*
+/.conf_*
+node_modules/

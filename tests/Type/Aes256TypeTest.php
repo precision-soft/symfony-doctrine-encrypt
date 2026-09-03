@@ -30,21 +30,6 @@ final class Aes256TypeTest extends AbstractTestCase
         return new MockDto(Aes256Type::class);
     }
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        if (false === Type::hasType(Aes256Type::getFullName())) {
-            Type::addType(Aes256Type::getFullName(), Aes256Type::class);
-        }
-
-        /** @var Aes256Type $aes256Type */
-        $aes256Type = Type::getType(Aes256Type::getFullName());
-        $this->aes256Type = $aes256Type;
-        $this->aes256Encryptor = new Aes256Encryptor(\str_repeat('c', 32));
-        $this->aes256Type->setEncryptor($this->aes256Encryptor);
-    }
-
     public function testConvertToDatabaseValueEncryptsValue(): void
     {
         /** @var AbstractPlatform $platform */
@@ -110,5 +95,20 @@ final class Aes256TypeTest extends AbstractTestCase
         $decrypted = $this->aes256Type->convertToPHPValue($encrypted, $platform);
 
         static::assertSame('original', $decrypted);
+    }
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        if (false === Type::hasType(Aes256Type::getFullName())) {
+            Type::addType(Aes256Type::getFullName(), Aes256Type::class);
+        }
+
+        /** @var Aes256Type $aes256Type */
+        $aes256Type = Type::getType(Aes256Type::getFullName());
+        $this->aes256Type = $aes256Type;
+        $this->aes256Encryptor = new Aes256Encryptor(\str_repeat('c', 32));
+        $this->aes256Type->setEncryptor($this->aes256Encryptor);
     }
 }

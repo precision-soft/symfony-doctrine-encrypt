@@ -22,12 +22,6 @@ final class Aes256FixedEncryptorTest extends TestCase
     private string $salt;
     private Aes256FixedEncryptor $aes256FixedEncryptor;
 
-    protected function setUp(): void
-    {
-        $this->salt = \str_repeat('b', 32);
-        $this->aes256FixedEncryptor = new Aes256FixedEncryptor($this->salt);
-    }
-
     public function testEncryptDecryptRoundTrip(): void
     {
         $plaintext = 'my-secret-password';
@@ -100,5 +94,11 @@ final class Aes256FixedEncryptorTest extends TestCase
     public function testGetTypeNameReturnsFullName(): void
     {
         static::assertSame(Aes256FixedType::getFullName(), $this->aes256FixedEncryptor->getTypeName());
+    }
+
+    protected function setUp(): void
+    {
+        $this->salt = \str_repeat('b', 32);
+        $this->aes256FixedEncryptor = new Aes256FixedEncryptor($this->salt);
     }
 }

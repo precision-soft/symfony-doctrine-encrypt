@@ -32,17 +32,6 @@ final class EncryptedEntityFunctionalTest extends TestCase
 {
     private ?EntityManagerInterface $entityManager = null;
 
-    protected function tearDown(): void
-    {
-        if (null !== $this->entityManager) {
-            IntegrationDatabase::dropSchema($this->entityManager);
-            $this->entityManager->getConnection()->close();
-            $this->entityManager = null;
-        }
-
-        parent::tearDown();
-    }
-
     #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderEngine')]
     public function testEncryptedFieldIsCiphertextOnDiskAndPlaintextInPhp(string $environmentVariable): void
     {
@@ -262,6 +251,17 @@ final class EncryptedEntityFunctionalTest extends TestCase
         $reloaded = $entityManager->find(EncryptedSubject::class, $identifier);
         static::assertInstanceOf(EncryptedSubject::class, $reloaded);
         static::assertSame(\str_repeat('p', 600), $reloaded->getDefaultLength());
+    }
+
+    protected function tearDown(): void
+    {
+        if (null !== $this->entityManager) {
+            IntegrationDatabase::dropSchema($this->entityManager);
+            $this->entityManager->getConnection()->close();
+            $this->entityManager = null;
+        }
+
+        parent::tearDown();
     }
 
     private function boot(string $environmentVariable): EntityManagerInterface

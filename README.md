@@ -232,9 +232,13 @@ php bin/console precision-soft:doctrine:database:rotate \
     --verify
 ```
 
-It reads the stored columns back after the rewrite and fails unless every selected value carries the current salt version. Combined with `--dry-run` it becomes an audit: nothing is written, and the command still reports which fields are not yet on the current salt.
+It reads the stored columns of the selected entities back after the rewrite and fails unless every value carries the current salt version - the whole table, not only the rows this run walked: `--from-id` and a checkpoint narrow the walk, never the check, because the point of the check is that no row is left behind. Under SINGLE_TABLE inheritance the count covers the selected class and its subclasses, the rows the walk could see, so a sibling row left on another salt is not the selected class' failure. Combined with `--dry-run` it becomes the check itself: nothing is written, the columns are still read back, and the command fails naming the fields and the row counts that are not yet on the current salt - run it before a rotation to see what is stale, and after one before dropping the old salt.
 
 **Checkpoints.** A checkpoint records the last identifier written per entity, and marks each entity completed when its pass finishes. Rerunning with the same path resumes an interrupted run from the last flushed batch, while an entity that already completed starts over — so the same file can be reused for a later rotation without silently scanning nothing. `--dry-run` never writes it, and `--from-id` overrides the stored cursor for that run.
+
+The file belongs to the run that wrote it: it carries the command name, the entity manager and the salt version the run writes with, and a run refuses a file written under another scope - a `database:rotate` interrupted mid-way cannot be resumed by `database:encrypt`, against another `--manager`, or after the current salt version moved on, because every row before the foreign cursor would be skipped as done. The format is version 2 since v4.7.0; a file written by v4.6.0 is refused with a message asking to finish that run with the release that wrote it, or to delete the file.
+
+The cursor holds the identifier as an integer or a string. An integer identifier - `integer`, `smallint`, `bigint` - is bound as the integer the engine hands back (a `bigint` beyond `PHP_INT_MAX` stays a string, as in DBAL), a string identifier as is, and any other identifier type - a uid, a date - is rebuilt through its DBAL type on the resume and on `--from-id`, so the comparison the keyset makes is the one the mapping makes. An identifier whose value is neither an integer, a string nor a `Stringable` object cannot be checkpointed and the run says so; an identifier the type cannot rebuild from the stored value is refused with the type and the field named.
 
 ## Security considerations
 
@@ -286,12 +290,14 @@ This is the path to use when you cannot decrypt the whole database at once. Old 
 
    The command reads through the application and flushes each batch with the current encryptor. Plaintext exists only in process memory for the loaded batch and is never persisted as an intermediate database state.
 
-3. Once every row is under `v2`, drop the old salt from configuration and redeploy:
+3. Once every row is under `v2` - `database:rotate --dry-run --verify` says so without writing anything - drop the old salt from configuration and redeploy:
 
     ```php
     $precisionSoftDoctrineEncryptConfig->salts(['v2' => '%env(APP_ENCRYPTION_SALT_V2)%']);
     $precisionSoftDoctrineEncryptConfig->currentSaltVersion('v2');
     ```
+
+**A salt version dropped too early**: a row still stored under a version that is no longer configured cannot be read - `decrypt()` refuses an unknown salt version - and `database:rotate` cannot skip it either: the batch that loads it fails, the run stops with the entity and the cursor it was loading after in the message, and nothing after that batch is touched. Put the version back, rotate, verify, then drop it. `--verify` cannot list such rows, because it only tells current from not current.
 
 **Deterministic columns**: `encryptedAes256fixed` uses a deterministic nonce derived from the current salt. A row encrypted under `v1` produces a different ciphertext under `v2`, so WHERE queries stop matching until the row is re-encrypted. If you have deterministic columns used in WHERE clauses, run step 2 as part of the same deploy that flips `currentSaltVersion`, or accept that queries miss old rows until step 2 completes.
 
@@ -455,6 +461,11 @@ Nothing in this bundle attaches a context of its own yet — the one place it ca
 Every exception in the package implements `Contract\ExceptionInterface`, so a consumer can read the context off any of them without knowing the concrete class. A subclass of your own that already declares a `$context` property or a
 `getContext()`/`setContext()` method will collide with `Exception\Trait\ExceptionTrait`.
 
+## Example application
+
+A runnable customer directory lives under [`.example/`](./.example/README.md): a `User` whose e-mail is deterministic and whose phone and address are random, written and read through the ORM with the bundle booted by a micro-kernel the way an application boots it; a `CustomerDirectory` service with the lookup by e-mail through `setEncryptedParameter()`, the lookup across every active salt version through `setEncryptedParameterInList()` while a rotation is in flight, and the refusal to search a random column; the encrypt and decrypt commands over a legacy plaintext table; the online salt rotation from one kernel generation to the next with `--dry-run --verify` as the check before and after; and the checkpoints that resume an interrupted run and refuse a file of another command or salt. It runs on MySQL and MariaDB, installs the bundle from the working tree through a path repository, so it always tests the code as it stands; run it with `.dev/validate/all.sh --example` (which starts the
+databases) or `cd .example && composer install && composer check`. The directory is `export-ignore`d and never reaches a consumer's `vendor/`.
+
 ## Dev
 
 The development environment uses Docker. The `./dc` script is a Docker Compose wrapper located in `.dev/`.
@@ -473,6 +484,7 @@ Run the full gate the way the pre-commit hook runs it - the CI workflow in
 .dev/validate/all.sh
 .dev/validate/all.sh --audit    # also audits the locked dependencies ( needs the network )
 .dev/validate/all.sh --staged   # what the pre-commit hook runs: nothing unless the index carries php
+.dev/validate/all.sh --example  # also installs and checks the example application against the databases
 ```
 
 Mutation testing is opt-in for the same reason, plus cost - it runs the suite once per mutant:

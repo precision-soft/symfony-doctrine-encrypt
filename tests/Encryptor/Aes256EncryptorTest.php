@@ -22,12 +22,6 @@ final class Aes256EncryptorTest extends TestCase
     private string $salt;
     private Aes256Encryptor $aes256Encryptor;
 
-    protected function setUp(): void
-    {
-        $this->salt = \str_repeat('a', 32);
-        $this->aes256Encryptor = new Aes256Encryptor($this->salt);
-    }
-
     public function testEncryptDecryptRoundTrip(): void
     {
         $plaintext = 'my-secret-password';
@@ -122,5 +116,11 @@ final class Aes256EncryptorTest extends TestCase
 
         static::assertNotSame($lookalike, $encrypted);
         static::assertSame($lookalike, $this->aes256Encryptor->decrypt($encrypted));
+    }
+
+    protected function setUp(): void
+    {
+        $this->salt = \str_repeat('a', 32);
+        $this->aes256Encryptor = new Aes256Encryptor($this->salt);
     }
 }

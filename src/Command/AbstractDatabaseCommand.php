@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Encrypt\Command;
 
+use Doctrine\DBAL\Types\Type;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
@@ -15,7 +16,9 @@ use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\Persistence\Mapping\ClassMetadata;
 use PrecisionSoft\Doctrine\Encrypt\Contract\EncryptorInterface;
+use PrecisionSoft\Doctrine\Encrypt\Dto\CheckpointScopeDto;
 use PrecisionSoft\Doctrine\Encrypt\Dto\EntityMetadataDto;
+use PrecisionSoft\Doctrine\Encrypt\Encryptor\AbstractEncryptor;
 use PrecisionSoft\Doctrine\Encrypt\Encryptor\FakeEncryptor;
 use PrecisionSoft\Doctrine\Encrypt\Exception\Exception;
 use PrecisionSoft\Doctrine\Encrypt\Exception\StopException;
@@ -23,9 +26,12 @@ use PrecisionSoft\Doctrine\Encrypt\Service\CheckpointService;
 use PrecisionSoft\Doctrine\Encrypt\Service\EncryptorFactory;
 use PrecisionSoft\Doctrine\Encrypt\Service\EntityService;
 use PrecisionSoft\Symfony\Console\Command\AbstractCommand;
+use Stringable;
 use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Helper\QuestionHelper;
+use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Question\ConfirmationQuestion;
 use Throwable;
 
@@ -38,6 +44,9 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
     protected const OPTION_CHECKPOINT = 'checkpoint';
     protected const OPTION_DRY_RUN = 'dry-run';
     protected const BATCH_SIZE = 50;
+
+    protected const INTEGER_TYPES = [Types::INTEGER, Types::SMALLINT, Types::BIGINT];
+    protected const STRING_TYPES = [Types::STRING, Types::TEXT, Types::ASCII_STRING, Types::GUID];
 
     protected ?CheckpointService $checkpointService = null;
 
@@ -61,6 +70,14 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
         $this->addOption(static::OPTION_DRY_RUN, null, InputOption::VALUE_NONE, 'walk every selected row without writing entities or the checkpoint');
     }
 
+    protected function initialize(InputInterface $input, OutputInterface $output): void
+    {
+        parent::initialize($input, $output);
+
+        /* a command is a container service that outlives a run: the checkpoint of the previous run must not become the cursor of this one */
+        $this->checkpointService = null;
+    }
+
     protected function getStringOption(string $optionName): string
     {
         $value = $this->input->getOption($optionName);
@@ -82,7 +99,12 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
     {
         $batchSize = $this->input->getOption(static::OPTION_BATCH_SIZE);
 
-        if (false === \is_string($batchSize) || 1 !== \preg_match('/^[1-9]\d*$/', $batchSize)) {
+        /* the cast saturates at PHP_INT_MAX instead of failing, and a saturated limit is one batch holding the whole table */
+        if (
+            false === \is_string($batchSize)
+            || 1 !== \preg_match('/^[1-9]\d*$/', $batchSize)
+            || (string)(int)$batchSize !== $batchSize
+        ) {
             throw new Exception(
                 \sprintf('the `--%s` option must be a positive integer', static::OPTION_BATCH_SIZE),
             );
@@ -96,7 +118,7 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
         $objectManager = $this->managerRegistry->getManager($this->getManagerName());
 
         if (false === ($objectManager instanceof EntityManagerInterface)) {
-            throw new Exception(\sprintf('expected EntityManagerInterface, got `%s`', $objectManager::class));
+            throw new Exception(\sprintf('expected an `EntityManagerInterface`, got `%s`', $objectManager::class));
         }
 
         return $objectManager;
@@ -192,11 +214,27 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
                 $this->applyKeysetPagination($queryBuilder, $identifierFieldNames, $lastIdentifierValues);
             }
 
-            $entities = $queryBuilder->getQuery()->getResult();
+            try {
+                $entities = $queryBuilder->getQuery()->getResult();
+            } catch (Throwable $throwable) {
+                throw new Exception(
+                    \sprintf(
+                        'loading a batch of `%s` %s failed: %s',
+                        $className,
+                        null === $lastIdentifierValues ? 'from the first row' : 'after the cursor `' . $this->describeCursor($lastIdentifierValues) . '`',
+                        $throwable->getMessage(),
+                    ),
+                    0,
+                    $throwable,
+                    ['className' => $className, 'cursor' => $lastIdentifierValues],
+                );
+            }
 
             if ([] === $entities) {
                 break;
             }
+
+            $this->assertCursorAdvances($className, $lastIdentifierValues, $entityMetadataDto->getClassMetadata()->getIdentifierValues(\end($entities)));
 
             try {
                 foreach ($entities as $entity) {
@@ -249,7 +287,39 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
 
     protected function getCheckpointService(): CheckpointService
     {
-        return $this->checkpointService ??= new CheckpointService($this->getStringOption(static::OPTION_CHECKPOINT));
+        if (null !== $this->checkpointService) {
+            return $this->checkpointService;
+        }
+
+        $path = $this->getStringOption(static::OPTION_CHECKPOINT);
+
+        return $this->checkpointService = new CheckpointService(
+            new CheckpointScopeDto(
+                (string)$this->getName(),
+                $this->getManagerName(),
+                '' === $path ? '' : $this->getCurrentSaltVersion(),
+            ),
+            $path,
+        );
+    }
+
+    /** the versions the registered types write with, so a checkpoint taken towards one salt is never resumed towards another */
+    protected function getCurrentSaltVersion(): string
+    {
+        $saltVersions = [];
+
+        foreach ($this->encryptorFactory->getTypeNames() as $typeName) {
+            $encryptor = $this->encryptorFactory->getType($typeName)->getEncryptor();
+
+            if (true === $encryptor instanceof AbstractEncryptor) {
+                $saltVersions[] = $encryptor->getCurrentSaltVersion();
+            }
+        }
+
+        $saltVersions = \array_values(\array_unique($saltVersions));
+        \sort($saltVersions, \SORT_STRING);
+
+        return \implode(',', $saltVersions);
     }
 
     /** @return string[] the class names given to `--entity`, an empty array when the run is not restricted */
@@ -331,7 +401,7 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
         $identifierFieldNames = $classMetadata->getIdentifierFieldNames();
 
         if ('' === $fromId) {
-            return $this->readCursor($classMetadata->getName(), $identifierFieldNames);
+            return $this->readCursor($classMetadata);
         }
 
         if (1 !== \count($this->getRequestedClassNames()) || 1 !== \count($identifierFieldNames)) {
@@ -348,13 +418,15 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
     }
 
     /**
-     * @param string[] $identifierFieldNames
+     * @phpstan-param ClassMetadata<object> $classMetadata
      * @return array<string, mixed>|null
      *
      * @throws Exception if the stored cursor cannot address the entity's identifier
      */
-    protected function readCursor(string $className, array $identifierFieldNames): ?array
+    protected function readCursor(ClassMetadata $classMetadata): ?array
     {
+        $className = $classMetadata->getName();
+        $identifierFieldNames = $classMetadata->getIdentifierFieldNames();
         $identifierValues = $this->getCheckpointService()->getIdentifierValues($className);
 
         if (null === $identifierValues) {
@@ -374,6 +446,25 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
             );
         }
 
+        foreach ($identifierFieldNames as $identifierFieldName) {
+            $value = $identifierValues[$identifierFieldName];
+
+            if (false === \is_int($value) && false === \is_string($value)) {
+                throw new Exception(
+                    \sprintf(
+                        'the checkpoint cursor for `%s` holds a value for `%s` that is not an integer or a string',
+                        $className,
+                        $identifierFieldName,
+                    ),
+                    0,
+                    null,
+                    ['className' => $className, 'fieldName' => $identifierFieldName, 'type' => \get_debug_type($value)],
+                );
+            }
+
+            $identifierValues[$identifierFieldName] = $this->convertIdentifierValue($classMetadata, $identifierFieldName, $value);
+        }
+
         return $identifierValues;
     }
 
@@ -382,14 +473,12 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
      *
      * @throws Exception if the option cannot be represented as the identifier's mapped type
      */
-    protected function castIdentifierValue(ClassMetadata $classMetadata, string $identifierFieldName, string $value): int|string
+    protected function castIdentifierValue(ClassMetadata $classMetadata, string $identifierFieldName, string $value): mixed
     {
-        /* an integer identifier bound as a string makes `id > :lastId` a cross-type comparison, which strict engines reject outright */
-        if (false === \in_array($classMetadata->getTypeOfField($identifierFieldName), [Types::INTEGER, Types::SMALLINT], true)) {
-            return $value;
-        }
-
-        if (1 !== \preg_match('/^-?\d+$/', $value)) {
+        if (
+            true === \in_array($classMetadata->getTypeOfField($identifierFieldName), static::INTEGER_TYPES, true)
+            && 1 !== \preg_match('/^-?\d+$/', $value)
+        ) {
             throw new Exception(
                 \sprintf(
                     'the `--%s` option must be an integer for `%s::%s`',
@@ -400,7 +489,112 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
             );
         }
 
-        return (int)$value;
+        return $this->convertIdentifierValue($classMetadata, $identifierFieldName, $value);
+    }
+
+    /**
+     * An integer identifier bound as a string makes `id > :lastId` a cross-type comparison, which strict engines reject outright; an identifier of any other type is rebuilt through its own DBAL type, the value a stored string cannot be bound as.
+     *
+     * @phpstan-param ClassMetadata<object> $classMetadata
+     *
+     * @throws Exception if the identifier's type cannot rebuild the value
+     */
+    protected function convertIdentifierValue(ClassMetadata $classMetadata, string $identifierFieldName, int|string $value): mixed
+    {
+        $typeName = (string)$classMetadata->getTypeOfField($identifierFieldName);
+
+        if (true === \in_array($typeName, static::INTEGER_TYPES, true)) {
+            /* a bigint past PHP_INT_MAX stays the string DBAL itself hands back for it */
+            return true === \is_string($value) && (string)(int)$value === $value ? (int)$value : $value;
+        }
+
+        if (true === \in_array($typeName, static::STRING_TYPES, true)) {
+            return $value;
+        }
+
+        try {
+            return Type::getType($typeName)->convertToPHPValue(
+                $value,
+                $this->getManager()->getConnection()->getDatabasePlatform(),
+            );
+        } catch (Throwable $throwable) {
+            throw new Exception(
+                \sprintf(
+                    'the identifier value `%s` cannot be converted through the `%s` type of `%s::%s`',
+                    $value,
+                    $typeName,
+                    $classMetadata->getName(),
+                    $identifierFieldName,
+                ),
+                0,
+                $throwable,
+                ['className' => $classMetadata->getName(), 'fieldName' => $identifierFieldName, 'typeName' => $typeName],
+            );
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $identifierValues
+     * @return array<string, int|string>
+     *
+     * @throws Exception if an identifier cannot be written into a checkpoint
+     */
+    protected function normalizeIdentifierValues(string $className, array $identifierValues): array
+    {
+        $normalized = [];
+
+        foreach ($identifierValues as $fieldName => $value) {
+            $normalized[$fieldName] = match (true) {
+                true === \is_int($value), true === \is_string($value) => $value,
+                true === $value instanceof Stringable => (string)$value,
+                default => throw new Exception(
+                    \sprintf('the identifier `%s` of `%s` is not an integer, a string or a `Stringable`; a checkpoint cannot address it', $fieldName, $className),
+                    0,
+                    null,
+                    ['className' => $className, 'fieldName' => $fieldName, 'type' => \get_debug_type($value)],
+                ),
+            };
+        }
+
+        return $normalized;
+    }
+
+    /** @param array<string, mixed> $identifierValues */
+    protected function describeCursor(array $identifierValues): string
+    {
+        $described = [];
+
+        foreach ($identifierValues as $fieldName => $value) {
+            $described[$fieldName] = match (true) {
+                true === \is_int($value), true === \is_string($value), null === $value => $value,
+                true === $value instanceof Stringable => (string)$value,
+                default => \serialize($value),
+            };
+        }
+
+        return (string)\json_encode($described);
+    }
+
+    /**
+     * The loop's only exit is an empty batch, so a keyset that adds no predicate would hand the same rows back forever.
+     *
+     * @param array<string, mixed>|null $previousIdentifierValues
+     * @param array<string, mixed> $identifierValues
+     *
+     * @throws Exception if the batch ends where the previous one did
+     */
+    protected function assertCursorAdvances(string $className, ?array $previousIdentifierValues, array $identifierValues): void
+    {
+        if (null === $previousIdentifierValues || $this->describeCursor($previousIdentifierValues) !== $this->describeCursor($identifierValues)) {
+            return;
+        }
+
+        throw new Exception(
+            \sprintf('the cursor for `%s` did not advance past `%s`; the identifier cannot be paginated on', $className, $this->describeCursor($identifierValues)),
+            0,
+            null,
+            ['className' => $className, 'cursor' => $identifierValues],
+        );
     }
 
     protected function isDryRun(): bool
@@ -411,13 +605,15 @@ abstract class AbstractDatabaseCommand extends AbstractCommand
     /** @param array<string, mixed>|null $lastIdentifierValues */
     protected function onBatchProcessed(EntityMetadataDto $entityMetadataDto, ?array $lastIdentifierValues): void
     {
-        if (true === $this->isDryRun() || null === $lastIdentifierValues) {
+        if (true === $this->isDryRun() || null === $lastIdentifierValues || false === $this->getCheckpointService()->hasPath()) {
             return;
         }
 
+        $className = $entityMetadataDto->getClassMetadata()->getName();
+
         $this->getCheckpointService()->setIdentifierValues(
-            $entityMetadataDto->getClassMetadata()->getName(),
-            $lastIdentifierValues,
+            $className,
+            $this->normalizeIdentifierValues($className, $lastIdentifierValues),
         );
     }
 

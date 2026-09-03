@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "74b59e96e1afe8e91dbd2d66eba5cdee",
+    "content-hash": "a590b227df07e11e87ba6dc4a74d0b15",
     "packages": [
         {
             "name": "doctrine/collections",
@@ -761,16 +761,16 @@
         },
         {
             "name": "precision-soft/symfony-console",
-            "version": "v4.7.0",
+            "version": "v4.8.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/precision-soft/symfony-console.git",
-                "reference": "87ad2a59668ef92c20cbc25f5ead48afabe639a5"
+                "reference": "b809be137a413be88eb198dfba6c656b2976a44f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/precision-soft/symfony-console/zipball/87ad2a59668ef92c20cbc25f5ead48afabe639a5",
-                "reference": "87ad2a59668ef92c20cbc25f5ead48afabe639a5",
+                "url": "https://api.github.com/repos/precision-soft/symfony-console/zipball/b809be137a413be88eb198dfba6c656b2976a44f",
+                "reference": "b809be137a413be88eb198dfba6c656b2976a44f",
                 "shasum": ""
             },
             "require": {
@@ -783,7 +783,7 @@
                 "symfony/yaml": "^7.0 || ^8.0"
             },
             "require-dev": {
-                "friendsofphp/php-cs-fixer": "3.*",
+                "friendsofphp/php-cs-fixer": "^3.0",
                 "phpstan/phpstan": "^2.0",
                 "phpstan/phpstan-mockery": "^2.0",
                 "phpunit/phpunit": "^11.5",
@@ -818,9 +818,9 @@
             ],
             "support": {
                 "issues": "https://github.com/precision-soft/symfony-console/issues",
-                "source": "https://github.com/precision-soft/symfony-console/tree/v4.7.0"
+                "source": "https://github.com/precision-soft/symfony-console/tree/v4.8.0"
             },
-            "time": "2026-09-01T07:32:09+00:00"
+            "time": "2026-09-02T15:50:44+00:00"
         },
         {
             "name": "psr/cache",
@@ -4285,16 +4285,16 @@
         },
         {
             "name": "precision-soft/symfony-phpunit",
-            "version": "v3.6.0",
+            "version": "v3.7.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/precision-soft/symfony-phpunit.git",
-                "reference": "0c9eabd6c0452a0e943ea83c50c7c26c73f93cb8"
+                "reference": "308a04c6b8d9fe087b34b2e2aa5f684995501c60"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/precision-soft/symfony-phpunit/zipball/0c9eabd6c0452a0e943ea83c50c7c26c73f93cb8",
-                "reference": "0c9eabd6c0452a0e943ea83c50c7c26c73f93cb8",
+                "url": "https://api.github.com/repos/precision-soft/symfony-phpunit/zipball/308a04c6b8d9fe087b34b2e2aa5f684995501c60",
+                "reference": "308a04c6b8d9fe087b34b2e2aa5f684995501c60",
                 "shasum": ""
             },
             "require": {
@@ -4304,7 +4304,7 @@
                 "symfony/string": "^7.0 || ^8.0"
             },
             "require-dev": {
-                "doctrine/doctrine-bundle": "^2.0",
+                "doctrine/doctrine-bundle": "^2.0 || ^3.0",
                 "doctrine/orm": "^3.0",
                 "friendsofphp/php-cs-fixer": "^3.0",
                 "phpstan/phpstan": "^2.0",
@@ -4341,9 +4341,9 @@
             ],
             "support": {
                 "issues": "https://github.com/precision-soft/symfony-phpunit/issues",
-                "source": "https://github.com/precision-soft/symfony-phpunit/tree/v3.6.0"
+                "source": "https://github.com/precision-soft/symfony-phpunit/tree/v3.7.0"
             },
-            "time": "2026-08-31T19:31:28+00:00"
+            "time": "2026-09-02T11:56:29+00:00"
         },
         {
             "name": "react/cache",
@@ -6489,5 +6489,8 @@
         "ext-openssl": "*"
     },
     "platform-dev": {},
+    "platform-overrides": {
+        "php": "8.2"
+    },
     "plugin-api-version": "2.9.0"
 }

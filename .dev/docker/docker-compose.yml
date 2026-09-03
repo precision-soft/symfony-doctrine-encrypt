@@ -44,7 +44,7 @@ services:
 
     mariadb:
         profiles: [ 'db' ]
-        image: mariadb:11.4
+        image: mariadb:11.8
         restart: 'no'
         environment:
             MARIADB_ROOT_PASSWORD: root

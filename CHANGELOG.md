@@ -6,6 +6,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [v4.7.0] - 2026-09-03 - Checkpoints scoped to their run, identifiers rebuilt through their types, a verify that counts what the walk could see, and the example application
+
+### Added
+
+- A checkpoint now records the scope it belongs to - the command, the entity manager and the salt version the run writes with - and a run refuses a file written under another scope, so a `database:rotate` interrupted mid-way can no longer be resumed by `database:encrypt`, against another manager, or towards a salt that was current when the cursor was taken and is not any more
+- `--verify` under SINGLE_TABLE inheritance counts only the rows of the selected class and its subclasses, the rows the walk could see, so a sibling row left on another salt is no longer the selected class' failure
+- `--dry-run --verify` is the documented check: nothing is written, the stored columns are read back, and the command fails naming the fields and the row counts still on another salt version
+- `--from-id` and a stored cursor are rebuilt through the identifier's DBAL type, so a `bigint` identifier is bound as the integer the engine hands back and a `date_immutable` or uid identifier as the object the mapping expects; an identifier the type cannot rebuild is refused with the type and the field named
+- A batch that fails to load names the entity and the cursor it was loading after, and carries the original exception, so a row under a salt version dropped from the configuration is found instead of guessed
+- `.example/`, a runnable customer directory whose test suite exercises every public capability of the bundle on the real engines: the encrypted user fields written and read through the ORM, the deterministic lookup by e-mail and the refusal to search a random column, the lookup across every active salt version while a rotation is in flight, the encrypt and decrypt commands over a legacy plaintext table, the online salt rotation with its check before and after, and the checkpoints that resume and refuse. It boots the bundle through a micro-kernel, installs the package from the working tree through a path repository and is gated by `.dev/validate/all.sh --example` and the `example` CI job, which now carries the two database services; the directory is `export-ignore`d, so nothing reaches a consumer's `vendor/`
+
+### Changed
+
+- The checkpoint file format is version 2. A version 1 file, written by v4.6.0, is refused with a message asking to finish that run with the release that wrote it or to delete the file - upgrading in the middle of a checkpointed run is the one case that needs a hand
+- A command instance reads its checkpoint afresh on every run: as a container service it outlives a run, and the cursor the previous run left in memory used to become the starting point of the next one, so a second run in the same process skipped every row and reported success
+- `infection.json5` raises `minMsi` and `minCoveredMsi` from 81 to 95, the score the suite now measures rounded down
+- `CheckpointService` takes the scope as its first constructor argument, `CheckpointService::setIdentifierValues()` accepts integer and string values only, and `AbstractDatabaseCommand::castIdentifierValue()` may return the object the identifier's type builds
+
+### Fixed
+
+- `--from-id` on a `bigint` identifier was bound as a string, the cross-type comparison the integer cast exists to prevent; a value beyond `PHP_INT_MAX` stays the string DBAL hands back for it
+- A checkpoint cursor whose value was an object - a `DateTimeImmutable` or a uid identifier - was json-encoded as an array or a string and bound back as such on the resume; a `Stringable` identifier is stored as its string form and rebuilt through its type, anything else is refused when the cursor is written and when it is read
+- A batch whose keyset added no predicate handed the same rows back forever; the walk now stops when the cursor did not advance past the previous batch
+- `--batch-size` accepted a value the integer cast saturates to `PHP_INT_MAX`, one batch holding the whole table
+- A short write of the checkpoint file was reported as a success and renamed over the previous good file; the byte count is compared and the data synced to disk before the rename
+- Class names in the messages of `AbstractDatabaseCommand`, `DatabaseRotateCommand` and `EntityService` are quoted, so the messages stay lowercase
+
 ## [v4.6.0] - 2026-09-01 - Online salt rotation with resumable, verifiable batch runs
 
 ### Added
@@ -388,7 +415,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `PrecisionSoftDoctrineEncryptBundle` + `PrecisionSoftDoctrineEncryptExtension` + `Configuration` — Symfony DI integration and config tree
 - `EncryptorInterface` contract for custom encryptor implementations
 
-[Unreleased]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v4.6.0...HEAD
+[Unreleased]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v4.7.0...HEAD
+
+[v4.7.0]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v4.6.0...v4.7.0
 
 [v4.6.0]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v4.5.0...v4.6.0
 

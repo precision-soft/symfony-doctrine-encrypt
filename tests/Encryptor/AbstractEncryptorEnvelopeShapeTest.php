@@ -24,11 +24,6 @@ final class AbstractEncryptorEnvelopeShapeTest extends TestCase
 
     private Aes256Encryptor $aes256Encryptor;
 
-    protected function setUp(): void
-    {
-        $this->aes256Encryptor = new Aes256Encryptor(\str_repeat('a', 32));
-    }
-
     /** @return iterable<string, array{int}> */
     public static function provideCurrentEnvelopeSegmentIndex(): iterable
     {
@@ -89,6 +84,11 @@ final class AbstractEncryptorEnvelopeShapeTest extends TestCase
         $corrupted = \implode(AbstractEncryptor::GLUE, $encryptedParts);
 
         static::assertNotSame($corrupted, $this->aes256Encryptor->encrypt($corrupted));
+    }
+
+    protected function setUp(): void
+    {
+        $this->aes256Encryptor = new Aes256Encryptor(\str_repeat('a', 32));
     }
 
     /* every segment decodes, so the missing glue byte after the marker is the only thing making this plaintext */

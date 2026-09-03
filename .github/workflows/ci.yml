@@ -20,8 +20,9 @@ jobs:
     # would also print a meaningless min-version warning above composer.json's floor
     static:
         runs-on: ubuntu-latest
+        timeout-minutes: 20
         steps:
-            -   uses: actions/checkout@v4
+            -   uses: actions/checkout@v7
             -   uses: shivammathur/setup-php@v2
                 with:
                     php-version: '8.2'
@@ -31,7 +32,7 @@ jobs:
             -   name: resolve the composer cache directory
                 id: composer-cache
                 run: echo "path=$(composer config --global cache-files-dir)" >> "${GITHUB_OUTPUT}"
-            -   uses: actions/cache@v4
+            -   uses: actions/cache@v6
                 with:
                     path: ${{ steps.composer-cache.outputs.path }}
                     key: composer-8.2-${{ hashFiles('composer.lock') }}
@@ -46,12 +47,13 @@ jobs:
     # exactly the ones composer.json's `>=8.2` claims, and nothing below certifies them individually
     test:
         runs-on: ubuntu-latest
+        timeout-minutes: 20
         strategy:
             fail-fast: false
             matrix:
                 php: [ '8.2', '8.3', '8.4', '8.5' ]
         steps:
-            -   uses: actions/checkout@v4
+            -   uses: actions/checkout@v7
             -   uses: shivammathur/setup-php@v2
                 with:
                     php-version: ${{ matrix.php }}
@@ -59,7 +61,7 @@ jobs:
             -   name: resolve the composer cache directory
                 id: composer-cache
                 run: echo "path=$(composer config --global cache-files-dir)" >> "${GITHUB_OUTPUT}"
-            -   uses: actions/cache@v4
+            -   uses: actions/cache@v6
                 with:
                     path: ${{ steps.composer-cache.outputs.path }}
                     key: composer-${{ matrix.php }}-${{ hashFiles('composer.lock') }}
@@ -68,7 +70,7 @@ jobs:
                 run: composer install --no-progress --no-interaction --prefer-dist
             # simple-phpunit builds a phpunit tree composer.lock does not describe; cached after the
             # install, since composer owns vendor/ and would clean a pre-restored directory back out
-            -   uses: actions/cache@v4
+            -   uses: actions/cache@v6
                 with:
                     path: vendor/bin/.phpunit
                     key: phpunit-${{ matrix.php }}-${{ hashFiles('composer.lock') }}
@@ -81,6 +83,7 @@ jobs:
     # what this job adds is the server and not the language version
     integration:
         runs-on: ubuntu-latest
+        timeout-minutes: 20
         services:
             mysql:
                 image: mysql:8.4
@@ -94,7 +97,7 @@ jobs:
                     --health-timeout=5s
                     --health-retries=20
             mariadb:
-                image: mariadb:11.4
+                image: mariadb:11.8
                 env:
                     MARIADB_ROOT_PASSWORD: root
                     MARIADB_DATABASE: test
@@ -106,9 +109,9 @@ jobs:
                     --health-retries=20
         env:
             DATABASE_URL_MYSQL: mysql://root:root@127.0.0.1:3306/test?serverVersion=8.4.0
-            DATABASE_URL_MARIADB: mysql://root:root@127.0.0.1:3307/test?serverVersion=11.4.0-MariaDB
+            DATABASE_URL_MARIADB: mysql://root:root@127.0.0.1:3307/test?serverVersion=11.8.0-MariaDB
         steps:
-            -   uses: actions/checkout@v4
+            -   uses: actions/checkout@v7
             -   uses: shivammathur/setup-php@v2
                 with:
                     php-version: '8.2'
@@ -117,7 +120,7 @@ jobs:
             -   name: resolve the composer cache directory
                 id: composer-cache
                 run: echo "path=$(composer config --global cache-files-dir)" >> "${GITHUB_OUTPUT}"
-            -   uses: actions/cache@v4
+            -   uses: actions/cache@v6
                 with:
                     path: ${{ steps.composer-cache.outputs.path }}
                     key: composer-8.2-${{ hashFiles('composer.lock') }}
@@ -129,12 +132,81 @@ jobs:
             -   name: integration suite
                 run: composer test-integration -- --fail-on-skipped
 
+    # the example application under .example/ installs this package from the working tree through a path
+    # repository, so it is the one lane that drives the code the way a consumer does; a repository whose
+    # .example/ carries no composer.json yet prints a notice and passes
+    example:
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        services:
+            mysql:
+                image: mysql:8.4
+                env:
+                    MYSQL_ROOT_PASSWORD: root
+                    MYSQL_DATABASE: test
+                ports: [ '3306:3306' ]
+                options: >-
+                    --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+                    --health-interval=5s
+                    --health-timeout=5s
+                    --health-retries=20
+            mariadb:
+                image: mariadb:11.8
+                env:
+                    MARIADB_ROOT_PASSWORD: root
+                    MARIADB_DATABASE: test
+                ports: [ '3307:3306' ]
+                options: >-
+                    --health-cmd="healthcheck.sh --connect --innodb_initialized"
+                    --health-interval=5s
+                    --health-timeout=5s
+                    --health-retries=20
+        env:
+            DATABASE_URL_MYSQL: mysql://root:root@127.0.0.1:3306/test?serverVersion=8.4.0
+            DATABASE_URL_MARIADB: mysql://root:root@127.0.0.1:3307/test?serverVersion=11.8.0-MariaDB
+        steps:
+            -   uses: actions/checkout@v7
+            -   name: look for the example application
+                id: example
+                run: |
+                    if [ -f .example/composer.json ]; then
+                        echo "present=true" >> "${GITHUB_OUTPUT}"
+                    else
+                        echo "present=false" >> "${GITHUB_OUTPUT}"
+                        echo "::notice::no .example/composer.json in this repository, nothing to run"
+                    fi
+            -   if: steps.example.outputs.present == 'true'
+                uses: shivammathur/setup-php@v2
+                with:
+                    php-version: '8.4'
+                    extensions: openssl, pdo_mysql
+                    coverage: none
+            -   name: resolve the composer cache directory
+                if: steps.example.outputs.present == 'true'
+                id: composer-cache
+                run: echo "path=$(composer config --global cache-files-dir)" >> "${GITHUB_OUTPUT}"
+            -   if: steps.example.outputs.present == 'true'
+                uses: actions/cache@v6
+                with:
+                    path: ${{ steps.composer-cache.outputs.path }}
+                    key: composer-8.4-example-${{ hashFiles('.example/composer.json') }}
+                    restore-keys: composer-8.4-example-
+            -   name: install the example's dependencies
+                if: steps.example.outputs.present == 'true'
+                working-directory: .example
+                run: composer install --no-progress --no-interaction --prefer-dist
+            -   name: check the example
+                if: steps.example.outputs.present == 'true'
+                working-directory: .example
+                run: composer check
+
     # every other lane installs composer.lock so the analysers certify one reproducible dependency set;
     # this one resolves the upper bound instead, on the only interpreter Symfony 8 will install on
     latest-deps:
         runs-on: ubuntu-latest
+        timeout-minutes: 20
         steps:
-            -   uses: actions/checkout@v4
+            -   uses: actions/checkout@v7
             -   uses: shivammathur/setup-php@v2
                 with:
                     php-version: '8.5'
@@ -142,26 +214,47 @@ jobs:
             -   name: resolve the composer cache directory
                 id: composer-cache
                 run: echo "path=$(composer config --global cache-files-dir)" >> "${GITHUB_OUTPUT}"
-            -   uses: actions/cache@v4
+            -   uses: actions/cache@v6
                 with:
                     path: ${{ steps.composer-cache.outputs.path }}
                     key: composer-8.5-latest-${{ hashFiles('composer.json') }}
                     restore-keys: composer-8.5-latest-
+            # config.platform.php pins resolution to the 8.2 floor so the lock installs everywhere; this is
+            # the one job that wants the ceiling instead, and symfony 8 needs php 8.4
+            -   name: drop the platform pin
+                run: composer config --unset platform.php
             -   name: resolve the highest allowed dependencies
-                run: composer update --no-progress --no-interaction --prefer-dist
+                run: composer update --no-progress --no-interaction --prefer-dist --with-all-dependencies
             -   name: report what resolved
                 run: composer show --direct
+            # without this the job goes green on a symfony 7 resolution and proves nothing
+            -   name: assert the resolution reached symfony 8
+                run: |
+                    set -euo pipefail
+                    RESOLVED="$(composer show --direct --format=json | jq -r '.installed[] | select(.name | startswith("symfony/")) | select(.name | startswith("symfony/polyfill-") | not) | "\(.name) \(.version)"')"
+                    if [ -z "${RESOLVED}" ]; then
+                        echo "no direct symfony package, nothing to assert"
+                        exit 0
+                    fi
+                    echo "${RESOLVED}" | while read -r PACKAGE VERSION; do
+                        echo "${PACKAGE}: ${VERSION}"
+                        case "${VERSION}" in
+                            v8.*|8.*) ;;
+                            *) echo "expected ${PACKAGE} 8.x, resolved ${VERSION}" >&2; exit 1 ;;
+                        esac
+                    done
             -   name: phpstan against the resolved set
                 run: composer phpstan
             -   name: test against the resolved set
-                run: composer test
+                run: composer test -- --fail-on-skipped
 
     # `--locked` reads composer.lock, so no vendor/ and no install step; kept out of `composer check`
     # because it is the only section needing the network
     audit:
         runs-on: ubuntu-latest
+        timeout-minutes: 20
         steps:
-            -   uses: actions/checkout@v4
+            -   uses: actions/checkout@v7
             -   uses: shivammathur/setup-php@v2
                 with:
                     php-version: '8.2'

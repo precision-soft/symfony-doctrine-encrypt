@@ -1,0 +1,72 @@
+parametersSchema:
+    precisionSoft: structure([
+        libraryPathList: listOf(string())
+        abbreviationList: listOf(string())
+        numberedNameAllowList: listOf(string())
+    ])
+
+parameters:
+    paths:
+        - Rule
+        - Support
+        - Test
+    excludePaths:
+        analyseAndScan:
+            - Test/Fixture
+    precisionSoft:
+        libraryPathList:
+            - %currentWorkingDirectory%/src
+        abbreviationList: [ config, e, i, j, ref, ctrl, btn, prop, props, cfg, repo, svc, cmd, conn, params, param, args, arg, req, res, resp, err, ex, k, n, str, num, val, obj, arr, tmp, temp, idx, len, cnt, db, em, qb ]
+        numberedNameAllowList: [ sha1, md5, sha256, sha512, crc32, base64, utf8 ]
+
+services:
+    -
+        class: PrecisionSoft\Dev\PhpStan\Rule\NegationRule
+        tags: [ phpstan.rules.rule ]
+    -
+        class: PrecisionSoft\Dev\PhpStan\Rule\YodaComparisonRule
+        tags: [ phpstan.rules.rule ]
+    -
+        class: PrecisionSoft\Dev\PhpStan\Rule\ExplicitConditionRule
+        tags: [ phpstan.rules.rule ]
+    -
+        class: PrecisionSoft\Dev\PhpStan\Rule\ImportedClassNameRule
+        tags: [ phpstan.rules.rule ]
+    -
+        class: PrecisionSoft\Dev\PhpStan\Rule\LibraryExceptionRule
+        tags: [ phpstan.rules.rule ]
+    -
+        class: PrecisionSoft\Dev\PhpStan\Rule\StaticReferenceRule
+        tags: [ phpstan.rules.rule ]
+    -
+        class: PrecisionSoft\Dev\PhpStan\Rule\LibraryVisibilityRule
+        arguments:
+            libraryPathList: %precisionSoft.libraryPathList%
+        tags: [ phpstan.rules.rule ]
+    -
+        class: PrecisionSoft\Dev\PhpStan\Rule\AccessorNameRule
+        tags: [ phpstan.rules.rule ]
+    -
+        class: PrecisionSoft\Dev\PhpStan\Rule\MessageCaseRule
+        tags: [ phpstan.rules.rule ]
+    -
+        class: PrecisionSoft\Dev\PhpStan\Rule\MemberOrderRule
+        tags: [ phpstan.rules.rule ]
+    -
+        class: PrecisionSoft\Dev\PhpStan\Rule\VariableNameRule
+        arguments:
+            abbreviationList: %precisionSoft.abbreviationList%
+            numberedNameAllowList: %precisionSoft.numberedNameAllowList%
+        tags: [ phpstan.rules.rule ]
+    -
+        class: PrecisionSoft\Dev\PhpStan\Rule\ParameterNameRule
+        arguments:
+            abbreviationList: %precisionSoft.abbreviationList%
+            numberedNameAllowList: %precisionSoft.numberedNameAllowList%
+        tags: [ phpstan.rules.rule ]
+    -
+        class: PrecisionSoft\Dev\PhpStan\Rule\SqlKeywordCaseRule
+        tags: [ phpstan.rules.rule ]
+    -
+        class: PrecisionSoft\Dev\PhpStan\Rule\CommentMarkerRule
+        tags: [ phpstan.rules.rule ]

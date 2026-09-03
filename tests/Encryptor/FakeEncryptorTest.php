@@ -18,11 +18,6 @@ final class FakeEncryptorTest extends TestCase
 {
     private FakeEncryptor $fakeEncryptor;
 
-    protected function setUp(): void
-    {
-        $this->fakeEncryptor = new FakeEncryptor();
-    }
-
     public function testEncryptReturnsInputUnchanged(): void
     {
         $value = 'any-value';
@@ -45,5 +40,10 @@ final class FakeEncryptorTest extends TestCase
     public function testGetTypeNameReturnsNull(): void
     {
         static::assertNull($this->fakeEncryptor->getTypeName());
+    }
+
+    protected function setUp(): void
+    {
+        $this->fakeEncryptor = new FakeEncryptor();
     }
 }

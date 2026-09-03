@@ -26,7 +26,7 @@
         "symfony/config": "^7.0 || ^8.0"
     },
     "require-dev": {
-        "friendsofphp/php-cs-fixer": "3.*",
+        "friendsofphp/php-cs-fixer": "^3.0",
         "phpstan/phpstan": "^2.0",
         "phpstan/phpstan-mockery": "^2.0",
         "phpunit/phpunit": "^11.5",
@@ -39,6 +39,7 @@
     },
     "autoload-dev": {
         "psr-4": {
+            "PrecisionSoft\\Dev\\PhpStan\\": ".dev/phpstan/",
             "PrecisionSoft\\Doctrine\\Encrypt\\Test\\": "tests/"
         }
     },
@@ -68,6 +69,9 @@
     "minimum-stability": "stable",
     "prefer-stable": true,
     "config": {
+        "platform": {
+            "php": "8.2"
+        },
         "sort-packages": true
     }
 }
