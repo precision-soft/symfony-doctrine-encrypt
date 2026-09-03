@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [v4.7.0] - 2026-09-03 - Checkpoints scoped to their run, identifiers rebuilt through their types, a verify that counts what the walk could see, and the example application
+
 ### Added
 
 - A checkpoint now records the scope it belongs to - the command, the entity manager and the salt version the run writes with - and a run refuses a file written under another scope, so a `database:rotate` interrupted mid-way can no longer be resumed by `database:encrypt`, against another manager, or towards a salt that was current when the cursor was taken and is not any more
@@ -413,7 +415,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `PrecisionSoftDoctrineEncryptBundle` + `PrecisionSoftDoctrineEncryptExtension` + `Configuration` — Symfony DI integration and config tree
 - `EncryptorInterface` contract for custom encryptor implementations
 
-[Unreleased]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v4.6.0...HEAD
+[Unreleased]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v4.7.0...HEAD
+
+[v4.7.0]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v4.6.0...v4.7.0
 
 [v4.6.0]: https://github.com/precision-soft/symfony-doctrine-encrypt/compare/v4.5.0...v4.6.0
 

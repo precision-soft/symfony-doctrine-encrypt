@@ -26,12 +26,12 @@ use PrecisionSoft\Doctrine\Encrypt\Service\CheckpointService;
 use PrecisionSoft\Doctrine\Encrypt\Service\EncryptorFactory;
 use PrecisionSoft\Doctrine\Encrypt\Service\EntityService;
 use PrecisionSoft\Symfony\Console\Command\AbstractCommand;
+use Stringable;
 use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-use Stringable;
 use Symfony\Component\Console\Question\ConfirmationQuestion;
 use Throwable;
 
