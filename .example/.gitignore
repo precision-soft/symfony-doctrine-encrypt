@@ -1,5 +1,6 @@
 /vendor/
 /var/
+/.env.local
 /composer.lock
 /.phpunit.cache/
 /.phpunit.result.cache
