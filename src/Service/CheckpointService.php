@@ -52,7 +52,11 @@ class CheckpointService
         return '' !== $this->path;
     }
 
-    /** @return array<string, mixed>|null */
+    /**
+     * @return array<string, mixed>|null
+     *
+     * @phpstan-impure
+     */
     public function getIdentifierValues(string $className): ?array
     {
         $this->load();
