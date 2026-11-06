@@ -6,9 +6,7 @@ namespace PrecisionSoft\Dev\PhpStan\Test\Fixture\MemberOrder;
 
 abstract class Violation
 {
-    public function __construct(protected string $name)
-    {
-    }
+    public function __construct(protected string $name) {}
 
     abstract protected function describe(): string;
 

@@ -37,32 +37,22 @@ return [
 
 ## Configuration
 
-Create `config/packages/precision_soft_doctrine_encrypt.php`:
+Create `config/packages/precision_soft_doctrine_encrypt.yaml`:
 
-```php
-<?php
-
-declare(strict_types=1);
-
-use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256Encryptor;
-use PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256FixedEncryptor;
-use Symfony\Config\PrecisionSoftDoctrineEncryptConfig;
-
-return static function (PrecisionSoftDoctrineEncryptConfig $precisionSoftDoctrineEncryptConfig): void {
-    $precisionSoftDoctrineEncryptConfig->salt('%env(APP_ENCRYPTION_SALT)%');
-    $precisionSoftDoctrineEncryptConfig->encryptors([
-        Aes256Encryptor::class,
-        Aes256FixedEncryptor::class,
-    ]);
-    $precisionSoftDoctrineEncryptConfig->enabledTypes(['encryptedAes256', 'encryptedAes256fixed']);
-};
+```yaml
+precision_soft_doctrine_encrypt:
+    salt: '%env(APP_ENCRYPTION_SALT)%'
+    encryptors:
+        - PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256Encryptor
+        - PrecisionSoft\Doctrine\Encrypt\Encryptor\Aes256FixedEncryptor
+    enabled_types: [encryptedAes256, encryptedAes256fixed]
 ```
 
-The PHP variant is preferred over YAML because the `Symfony\Config\PrecisionSoftDoctrineEncryptConfig` class gives you IDE autocomplete and catches typos at parse time.
+YAML works on every supported Symfony version; Symfony 8 no longer generates the fluent methods of `Symfony\Config\PrecisionSoftDoctrineEncryptConfig`.
 
 `encryptors` is optional — when omitted, every encryptor registered with the `precision-soft.doctrine.encryptor` service tag is active. List entries to restrict the built-in set or to swap a built-in encryptor for your own (see [Custom encryptors](#custom-encryptors)).
 
-`enabledTypes` is optional — when omitted, every type corresponding to an active encryptor is registered. Use this when you want a subset of columns encrypted (for example, only deterministic columns) without removing the encryptor class from the service container.
+`enabled_types` is optional — when omitted, every type corresponding to an active encryptor is registered. Use this when you want a subset of columns encrypted (for example, only deterministic columns) without removing the encryptor class from the service container.
 
 `salt` is required — minimum 32 characters. It is used as HKDF input material, not a password; use a randomly generated high-entropy string. All subkeys (encryption, MAC, deterministic nonce) are derived from this single salt via HKDF-SHA256 with distinct info strings.
 
@@ -80,25 +70,17 @@ A 32-byte (44-character base64) salt is the minimum; 48 bytes (64-character base
 
 ### Multi-salt configuration (for key rotation)
 
-When rotating encryption keys without a maintenance window, configure a map of versioned salts and point `currentSaltVersion` at the one to use for new writes. Every encryptor can still decrypt values written under any listed version.
+When rotating encryption keys without a maintenance window, configure a map of versioned salts and point `current_salt_version` at the one to use for new writes. Every encryptor can still decrypt values written under any listed version.
 
-```php
-<?php
-
-declare(strict_types=1);
-
-use Symfony\Config\PrecisionSoftDoctrineEncryptConfig;
-
-return static function (PrecisionSoftDoctrineEncryptConfig $precisionSoftDoctrineEncryptConfig): void {
-    $precisionSoftDoctrineEncryptConfig->salts([
-        'v1' => '%env(APP_ENCRYPTION_SALT_V1)%',
-        'v2' => '%env(APP_ENCRYPTION_SALT_V2)%',
-    ]);
-    $precisionSoftDoctrineEncryptConfig->currentSaltVersion('v2');
-};
+```yaml
+precision_soft_doctrine_encrypt:
+    salts:
+        v1: '%env(APP_ENCRYPTION_SALT_V1)%'
+        v2: '%env(APP_ENCRYPTION_SALT_V2)%'
+    current_salt_version: v2
 ```
 
-`salt` and `salts` are mutually exclusive. When `salts` is used, `currentSaltVersion` is required and must reference one of the listed versions. Every salt must meet the same minimum-length requirement (32 characters). See [Secret rotation](#secret-rotation) for the full workflow.
+`salt` and `salts` are mutually exclusive. When `salts` is used, `current_salt_version` is required and must reference one of the listed versions. Every salt must meet the same minimum-length requirement (32 characters). See [Secret rotation](#secret-rotation) for the full workflow.
 
 ## Encryption types
 
@@ -262,22 +244,14 @@ v4.0.0 embeds the salt version inside every ciphertext (see [Format versioning](
 
 This is the path to use when you cannot decrypt the whole database at once. Old and new salts coexist, old rows remain readable under the old version, new writes pick up the new version.
 
-1. Add the new salt alongside the old one and point `currentSaltVersion` at the new version. Deploy.
+1. Add the new salt alongside the old one and point `current_salt_version` at the new version. Deploy.
 
-    ```php
-    <?php
-
-    declare(strict_types=1);
-
-    use Symfony\Config\PrecisionSoftDoctrineEncryptConfig;
-
-    return static function (PrecisionSoftDoctrineEncryptConfig $precisionSoftDoctrineEncryptConfig): void {
-        $precisionSoftDoctrineEncryptConfig->salts([
-            'v1' => '%env(APP_ENCRYPTION_SALT_V1)%',
-            'v2' => '%env(APP_ENCRYPTION_SALT_V2)%',
-        ]);
-        $precisionSoftDoctrineEncryptConfig->currentSaltVersion('v2');
-    };
+    ```yaml
+    precision_soft_doctrine_encrypt:
+        salts:
+            v1: '%env(APP_ENCRYPTION_SALT_V1)%'
+            v2: '%env(APP_ENCRYPTION_SALT_V2)%'
+        current_salt_version: v2
     ```
 
    From this point on, **new writes** are stamped with `v2` and use the `v2` subkeys; **reads** of old `v1` rows continue to succeed because their salt version is embedded in the payload.
@@ -292,14 +266,16 @@ This is the path to use when you cannot decrypt the whole database at once. Old 
 
 3. Once every row is under `v2` - `database:rotate --dry-run --verify` says so without writing anything - drop the old salt from configuration and redeploy:
 
-    ```php
-    $precisionSoftDoctrineEncryptConfig->salts(['v2' => '%env(APP_ENCRYPTION_SALT_V2)%']);
-    $precisionSoftDoctrineEncryptConfig->currentSaltVersion('v2');
+    ```yaml
+    precision_soft_doctrine_encrypt:
+        salts:
+            v2: '%env(APP_ENCRYPTION_SALT_V2)%'
+        current_salt_version: v2
     ```
 
 **A salt version dropped too early**: a row still stored under a version that is no longer configured cannot be read - `decrypt()` refuses an unknown salt version - and `database:rotate` cannot skip it either: the batch that loads it fails, the run stops with the entity and the cursor it was loading after in the message, and nothing after that batch is touched. Put the version back, rotate, verify, then drop it. `--verify` cannot list such rows, because it only tells current from not current.
 
-**Deterministic columns**: `encryptedAes256fixed` uses a deterministic nonce derived from the current salt. A row encrypted under `v1` produces a different ciphertext under `v2`, so WHERE queries stop matching until the row is re-encrypted. If you have deterministic columns used in WHERE clauses, run step 2 as part of the same deploy that flips `currentSaltVersion`, or accept that queries miss old rows until step 2 completes.
+**Deterministic columns**: `encryptedAes256fixed` uses a deterministic nonce derived from the current salt. A row encrypted under `v1` produces a different ciphertext under `v2`, so WHERE queries stop matching until the row is re-encrypted. If you have deterministic columns used in WHERE clauses, run step 2 as part of the same deploy that flips `current_salt_version`, or accept that queries miss old rows until step 2 completes.
 
 ### Offline rotation (maintenance window)
 

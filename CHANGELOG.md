@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- `README.md` - the configuration examples used the fluent config builder: `salts([...])` throws an `ArgumentCountError` on Symfony 7, where the generated method takes one version and one value, and Symfony 8 no longer generates fluent methods. The examples are now YAML, which works on every supported version
+
 ## [v4.7.0] - 2026-09-03 - Checkpoints scoped to their run, identifiers rebuilt through their types, a verify that counts what the walk could see, and the example application
 
 ### Added

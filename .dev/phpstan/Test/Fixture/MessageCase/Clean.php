@@ -9,9 +9,7 @@ use RuntimeException;
 
 class Clean
 {
-    public function __construct(protected LoggerInterface $logger)
-    {
-    }
+    public function __construct(protected LoggerInterface $logger) {}
 
     public function run(string $name): never
     {
